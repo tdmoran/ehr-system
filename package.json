@@ -1,0 +1,21 @@
+{
+  "name": "ehr-system",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "docker-compose up",
+    "dev:api": "npm run dev -w packages/api",
+    "dev:web": "npm run dev -w packages/web",
+    "build": "npm run build -w packages/api && npm run build -w packages/web",
+    "test": "npm run test -w packages/api && npm run test -w packages/web",
+    "lint": "eslint packages/*/src",
+    "db:migrate": "npm run migrate -w packages/api"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  }
+}

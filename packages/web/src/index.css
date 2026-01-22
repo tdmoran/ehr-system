@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-navy-900: #102a43;
+    --color-teal-500: #27ab83;
+  }
+
+  html {
+    @apply text-navy-900;
+  }
+
+  body {
+    @apply font-body bg-clinical-50 min-h-screen;
+  }
+
+  /* Clinical scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-clinical-100;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-navy-300 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-navy-400;
+  }
+}
+
+@layer components {
+  /* Input field styling with clinical precision */
+  .input-clinical {
+    @apply w-full px-4 py-3 bg-white border border-navy-200 rounded-lg
+           font-body text-navy-900 placeholder-navy-400
+           transition-all duration-200
+           focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20;
+  }
+
+  .input-clinical:hover:not(:focus) {
+    @apply border-navy-300;
+  }
+
+  /* Primary button - confident teal */
+  .btn-primary {
+    @apply px-6 py-3 bg-teal-600 text-white font-display font-semibold
+           rounded-lg shadow-clinical transition-all duration-200
+           hover:bg-teal-700 hover:shadow-clinical-md
+           active:scale-[0.98] active:shadow-clinical
+           focus:outline-none focus:ring-2 focus:ring-teal-500/50
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100;
+  }
+
+  /* Secondary button - navy outline */
+  .btn-secondary {
+    @apply px-6 py-3 bg-white text-navy-700 font-display font-semibold
+           border border-navy-200 rounded-lg shadow-clinical transition-all duration-200
+           hover:bg-navy-50 hover:border-navy-300
+           active:scale-[0.98]
+           focus:outline-none focus:ring-2 focus:ring-navy-500/20;
+  }
+
+  /* Card component */
+  .card-clinical {
+    @apply bg-white rounded-xl shadow-clinical border border-clinical-200;
+  }
+
+  /* Status badge base */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-body;
+  }
+
+  .badge-success {
+    @apply bg-teal-100 text-teal-800;
+  }
+
+  .badge-warning {
+    @apply bg-amber-100 text-amber-800;
+  }
+
+  .badge-danger {
+    @apply bg-coral-100 text-coral-700;
+  }
+
+  .badge-neutral {
+    @apply bg-navy-100 text-navy-700;
+  }
+}
+
+/* Subtle grid pattern for backgrounds */
+.bg-grid-pattern {
+  background-image:
+    linear-gradient(to right, rgba(16, 42, 67, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(16, 42, 67, 0.03) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Staggered animation delays for lists */
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.15s; }
+.stagger-3 { animation-delay: 0.2s; }
+.stagger-4 { animation-delay: 0.25s; }
+.stagger-5 { animation-delay: 0.3s; }

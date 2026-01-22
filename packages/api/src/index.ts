@@ -1,0 +1,37 @@
+import express from 'express';
+import cors from 'cors';
+import { config } from './config/index.js';
+import routes from './routes/index.js';
+import { logger } from './utils/logger.js';
+
+const app = express();
+
+app.use(cors({
+  origin: config.cors.origin,
+  credentials: true,
+}));
+
+app.use(express.json());
+
+app.use((req, res, next) => {
+  logger.info(`${req.method} ${req.path}`, {
+    ip: req.ip,
+    userAgent: req.headers['user-agent'],
+  });
+  next();
+});
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.use('/api', routes);
+
+app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  logger.error('Unhandled error', { error: err.message, stack: err.stack });
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+app.listen(config.port, () => {
+  logger.info(`API server running on port ${config.port}`);
+});

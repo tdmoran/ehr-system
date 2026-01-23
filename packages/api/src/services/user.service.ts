@@ -36,24 +36,24 @@ function mapRow(row: Record<string, unknown>): User {
 }
 
 export async function findByEmail(email: string): Promise<User | null> {
-  const result = await query(`SELECT * FROM users WHERE email = $1 AND active = true`, [email]);
+  const result = await query<Record<string, unknown>>(`SELECT * FROM users WHERE email = $1 AND active = true`, [email]);
   return result.rows.length > 0 ? mapRow(result.rows[0]) : null;
 }
 
 export async function findById(id: string): Promise<User | null> {
-  const result = await query(`SELECT * FROM users WHERE id = $1`, [id]);
+  const result = await query<Record<string, unknown>>(`SELECT * FROM users WHERE id = $1`, [id]);
   return result.rows.length > 0 ? mapRow(result.rows[0]) : null;
 }
 
 export async function verifyPassword(email: string, password: string): Promise<User | null> {
-  const result = await query(
+  const result = await query<Record<string, unknown>>(
     `SELECT * FROM users WHERE email = $1 AND active = true`,
     [email]
   );
 
   if (result.rows.length === 0) return null;
 
-  const row = result.rows[0] as Record<string, unknown>;
+  const row = result.rows[0];
   const passwordHash = row.password_hash as string;
 
   const isValid = await bcrypt.compare(password, passwordHash);
@@ -65,7 +65,7 @@ export async function verifyPassword(email: string, password: string): Promise<U
 export async function create(input: CreateUserInput): Promise<User> {
   const passwordHash = await bcrypt.hash(input.password, 10);
 
-  const result = await query(
+  const result = await query<Record<string, unknown>>(
     `INSERT INTO users (email, password_hash, first_name, last_name, role)
      VALUES ($1, $2, $3, $4, $5)
      RETURNING *`,
@@ -76,20 +76,19 @@ export async function create(input: CreateUserInput): Promise<User> {
 }
 
 export function generateToken(user: User): string {
-  return jwt.sign(
-    {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      firstName: user.firstName,
-      lastName: user.lastName,
-    },
-    config.jwt.secret,
-    { expiresIn: config.jwt.expiresIn }
-  );
+  const payload = {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    firstName: user.firstName,
+    lastName: user.lastName,
+  };
+  return jwt.sign(payload, config.jwt.secret, {
+    expiresIn: config.jwt.expiresIn as jwt.SignOptions['expiresIn']
+  });
 }
 
 export async function findAll(): Promise<User[]> {
-  const result = await query(`SELECT * FROM users WHERE active = true ORDER BY last_name, first_name`);
+  const result = await query<Record<string, unknown>>(`SELECT * FROM users WHERE active = true ORDER BY last_name, first_name`);
   return result.rows.map(mapRow);
 }

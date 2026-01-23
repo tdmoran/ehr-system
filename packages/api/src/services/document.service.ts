@@ -37,7 +37,7 @@ function mapRow(row: Record<string, unknown>): Document {
 }
 
 export async function findByPatientId(patientId: string): Promise<Document[]> {
-  const result = await query(
+  const result = await query<Record<string, unknown>>(
     `SELECT * FROM documents WHERE patient_id = $1 ORDER BY created_at DESC`,
     [patientId]
   );
@@ -45,12 +45,12 @@ export async function findByPatientId(patientId: string): Promise<Document[]> {
 }
 
 export async function findById(id: string): Promise<Document | null> {
-  const result = await query(`SELECT * FROM documents WHERE id = $1`, [id]);
+  const result = await query<Record<string, unknown>>(`SELECT * FROM documents WHERE id = $1`, [id]);
   return result.rows.length > 0 ? mapRow(result.rows[0]) : null;
 }
 
 export async function create(input: CreateDocumentInput): Promise<Document> {
-  const result = await query(
+  const result = await query<Record<string, unknown>>(
     `INSERT INTO documents (
       patient_id, uploaded_by, filename, original_name, mime_type, file_size, description
     ) VALUES ($1, $2, $3, $4, $5, $6, $7)

@@ -13,7 +13,7 @@ export const pool = new Pool({
   ssl: isCloudDB ? { rejectUnauthorized: false } : false,
 });
 
-export async function query<T = unknown>(
+export async function query<T extends pg.QueryResultRow = pg.QueryResultRow>(
   text: string,
   params?: unknown[]
 ): Promise<pg.QueryResult<T>> {

@@ -46,7 +46,7 @@ function mapRow(row: Record<string, unknown>): Encounter {
 }
 
 export async function findByPatientId(patientId: string): Promise<Encounter[]> {
-  const result = await query(
+  const result = await query<Record<string, unknown>>(
     `SELECT * FROM encounters WHERE patient_id = $1 ORDER BY encounter_date DESC`,
     [patientId]
   );
@@ -54,12 +54,12 @@ export async function findByPatientId(patientId: string): Promise<Encounter[]> {
 }
 
 export async function findById(id: string): Promise<Encounter | null> {
-  const result = await query(`SELECT * FROM encounters WHERE id = $1`, [id]);
+  const result = await query<Record<string, unknown>>(`SELECT * FROM encounters WHERE id = $1`, [id]);
   return result.rows.length > 0 ? mapRow(result.rows[0]) : null;
 }
 
 export async function create(input: CreateEncounterInput): Promise<Encounter> {
-  const result = await query(
+  const result = await query<Record<string, unknown>>(
     `INSERT INTO encounters (
       patient_id, provider_id, encounter_date, chief_complaint,
       subjective, objective, assessment, plan
@@ -105,7 +105,7 @@ export async function update(id: string, input: Partial<CreateEncounterInput>): 
   fields.push(`updated_at = CURRENT_TIMESTAMP`);
   values.push(id);
 
-  const result = await query(
+  const result = await query<Record<string, unknown>>(
     `UPDATE encounters SET ${fields.join(', ')} WHERE id = $${paramCount} RETURNING *`,
     values
   );
@@ -114,7 +114,7 @@ export async function update(id: string, input: Partial<CreateEncounterInput>): 
 }
 
 export async function sign(id: string): Promise<Encounter | null> {
-  const result = await query(
+  const result = await query<Record<string, unknown>>(
     `UPDATE encounters
      SET status = 'signed', signed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
      WHERE id = $1 AND status != 'signed'

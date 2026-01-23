@@ -68,7 +68,7 @@ function mapRow(row: Record<string, unknown>): Patient {
 }
 
 export async function findAll(limit = 50, offset = 0): Promise<Patient[]> {
-  const result = await query(
+  const result = await query<Record<string, unknown>>(
     `SELECT * FROM patients WHERE active = true ORDER BY last_name, first_name LIMIT $1 OFFSET $2`,
     [limit, offset]
   );
@@ -76,17 +76,17 @@ export async function findAll(limit = 50, offset = 0): Promise<Patient[]> {
 }
 
 export async function findById(id: string): Promise<Patient | null> {
-  const result = await query(`SELECT * FROM patients WHERE id = $1`, [id]);
+  const result = await query<Record<string, unknown>>(`SELECT * FROM patients WHERE id = $1`, [id]);
   return result.rows.length > 0 ? mapRow(result.rows[0]) : null;
 }
 
 export async function findByMrn(mrn: string): Promise<Patient | null> {
-  const result = await query(`SELECT * FROM patients WHERE mrn = $1`, [mrn]);
+  const result = await query<Record<string, unknown>>(`SELECT * FROM patients WHERE mrn = $1`, [mrn]);
   return result.rows.length > 0 ? mapRow(result.rows[0]) : null;
 }
 
 export async function search(searchTerm: string, limit = 20): Promise<Patient[]> {
-  const result = await query(
+  const result = await query<Record<string, unknown>>(
     `SELECT * FROM patients
      WHERE active = true
        AND (
@@ -103,7 +103,7 @@ export async function search(searchTerm: string, limit = 20): Promise<Patient[]>
 }
 
 export async function create(input: CreatePatientInput): Promise<Patient> {
-  const result = await query(
+  const result = await query<Record<string, unknown>>(
     `INSERT INTO patients (
       mrn, first_name, last_name, date_of_birth, gender, email, phone,
       address_line1, address_line2, city, state, zip,
@@ -169,7 +169,7 @@ export async function update(id: string, input: Partial<CreatePatientInput>): Pr
   fields.push(`updated_at = CURRENT_TIMESTAMP`);
   values.push(id);
 
-  const result = await query(
+  const result = await query<Record<string, unknown>>(
     `UPDATE patients SET ${fields.join(', ')} WHERE id = $${paramCount} RETURNING *`,
     values
   );

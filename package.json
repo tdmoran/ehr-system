@@ -12,10 +12,12 @@
     "build": "npm run build -w packages/api && npm run build -w packages/web",
     "test": "npm run test -w packages/api && npm run test -w packages/web",
     "lint": "eslint packages/*/src",
-    "db:migrate": "npm run migrate -w packages/api"
+    "db:migrate": "npm run migrate -w packages/api",
+    "db:setup": "node scripts/migrate.js"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
+    "pg": "^8.17.2",
     "typescript": "^5.3.0"
   }
 }

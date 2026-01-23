@@ -6,15 +6,15 @@
 
 -- Admin user
 INSERT INTO users (id, email, password_hash, first_name, last_name, role) VALUES
-('a0000000-0000-0000-0000-000000000001', 'admin@example.com', '$2b$10$8KzaNdKIMyOkASCBqfLrMeeDH.tSyl4hfc439LHD1x9SLlAJDbYcG', 'Admin', 'User', 'admin');
+('a0000000-0000-0000-0000-000000000001', 'admin@example.com', '$2b$10$hkCFa4g6UL4PzHft.gVNNesI5KyTV.wWV38AtP9pX6dPC4H24lWzy', 'Admin', 'User', 'admin');
 
 -- Provider (doctor)
 INSERT INTO users (id, email, password_hash, first_name, last_name, role) VALUES
-('a0000000-0000-0000-0000-000000000002', 'drsmith@example.com', '$2b$10$8KzaNdKIMyOkASCBqfLrMeeDH.tSyl4hfc439LHD1x9SLlAJDbYcG', 'John', 'Smith', 'provider');
+('a0000000-0000-0000-0000-000000000002', 'drsmith@example.com', '$2b$10$hkCFa4g6UL4PzHft.gVNNesI5KyTV.wWV38AtP9pX6dPC4H24lWzy', 'John', 'Smith', 'provider');
 
 -- Nurse
 INSERT INTO users (id, email, password_hash, first_name, last_name, role) VALUES
-('a0000000-0000-0000-0000-000000000003', 'nursejones@example.com', '$2b$10$8KzaNdKIMyOkASCBqfLrMeeDH.tSyl4hfc439LHD1x9SLlAJDbYcG', 'Sarah', 'Jones', 'nurse');
+('a0000000-0000-0000-0000-000000000003', 'nursejones@example.com', '$2b$10$hkCFa4g6UL4PzHft.gVNNesI5KyTV.wWV38AtP9pX6dPC4H24lWzy', 'Sarah', 'Jones', 'nurse');
 
 -- Insert test patients (fake data)
 INSERT INTO patients (id, mrn, first_name, last_name, date_of_birth, gender, email, phone, address_line1, city, state, zip, insurance_provider, insurance_id) VALUES
@@ -29,37 +29,22 @@ INSERT INTO allergies (patient_id, allergen, reaction, severity) VALUES
 ('b0000000-0000-0000-0000-000000000002', 'Aspirin', 'GI upset', 'mild');
 
 -- Insert sample encounters
-INSERT INTO encounters (patient_id, provider_id, encounter_date, chief_complaint, subjective, objective, assessment, plan, vitals, diagnosis_codes, status, signed_at) VALUES
+INSERT INTO encounters (patient_id, provider_id, encounter_date, chief_complaint, subjective, objective, assessment, plan, status, signed_at) VALUES
 ('b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000002', NOW() - INTERVAL '7 days',
  'Annual physical exam',
  'Patient presents for routine annual physical. No acute complaints. Reports occasional headaches.',
- 'BP 118/76, HR 72, Temp 98.4F, Weight 145 lbs. General appearance: well-nourished, no acute distress.',
+ 'General appearance: well-nourished, no acute distress.',
  'Healthy adult female. Tension headaches.',
- 'Continue current medications. Return in 1 year or as needed.',
- '{"bp": "118/76", "hr": 72, "temp": 98.4, "weight": 145, "height": 65}',
- ARRAY['Z00.00', 'G44.209'],
+ 'Return in 1 year or as needed.',
  'signed',
  NOW() - INTERVAL '7 days');
 
-INSERT INTO encounters (patient_id, provider_id, encounter_date, chief_complaint, subjective, objective, assessment, plan, vitals, diagnosis_codes, status) VALUES
+INSERT INTO encounters (patient_id, provider_id, encounter_date, chief_complaint, subjective, objective, assessment, plan, status) VALUES
 ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000002', NOW() - INTERVAL '1 day',
- 'Follow-up for diabetes',
- 'Patient returns for diabetes follow-up. Reports good compliance with medications. Occasional fatigue.',
- 'BP 132/84, HR 78, Weight 195 lbs. Foot exam normal.',
- 'Type 2 diabetes, controlled. HTN, borderline.',
- 'Continue Metformin. Recheck A1c in 3 months. Dietary counseling provided.',
- '{"bp": "132/84", "hr": 78, "temp": 98.6, "weight": 195}',
- ARRAY['E11.9', 'R53.83'],
+ 'Follow-up',
+ 'Patient returns for follow-up. Reports good compliance. Occasional fatigue.',
+ 'Exam normal.',
+ 'Condition stable.',
+ 'Continue current management. Follow up in 3 months.',
  'completed');
 
--- Insert medications
-INSERT INTO medications (patient_id, prescriber_id, drug_name, dosage, frequency, route, start_date, active) VALUES
-('b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000002', 'Lisinopril', '10mg', 'Once daily', 'oral', CURRENT_DATE - INTERVAL '1 year', true),
-('b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000002', 'Vitamin D3', '2000 IU', 'Once daily', 'oral', CURRENT_DATE - INTERVAL '6 months', true),
-('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000002', 'Metformin', '500mg', 'Twice daily', 'oral', CURRENT_DATE - INTERVAL '2 years', true);
-
--- Insert lab results
-INSERT INTO lab_results (patient_id, ordering_provider_id, test_name, test_date, result_value, result_unit, reference_range, abnormal) VALUES
-('b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000002', 'Hemoglobin A1c', NOW() - INTERVAL '7 days', '5.4', '%', '4.0-5.6', false),
-('b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000002', 'Total Cholesterol', NOW() - INTERVAL '7 days', '195', 'mg/dL', '<200', false),
-('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000002', 'Hemoglobin A1c', NOW() - INTERVAL '30 days', '7.2', '%', '4.0-5.6', true);

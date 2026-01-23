@@ -33,15 +33,13 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3000
-      - DATABASE_URL=postgresql://ehr:ehr@db:5432/ehr
-      - JWT_SECRET=dev-secret-change-in-production
-      - CORS_ORIGIN=http://localhost:5173
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-production}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
     volumes:
       - ./packages/api/src:/app/src:ro
+      - uploads:/app/uploads
       - /app/node_modules
-    depends_on:
-      db:
-        condition: service_healthy
     restart: unless-stopped
 
   # Web Frontend
@@ -63,3 +61,4 @@ services:
 
 volumes:
   pgdata:
+  uploads:

@@ -1,15 +1,5 @@
 import { query } from '../db/index.js';
 
-export interface Vitals {
-  bp?: string;
-  hr?: number;
-  temp?: number;
-  weight?: number;
-  height?: number;
-  respiratoryRate?: number;
-  oxygenSaturation?: number;
-}
-
 export interface Encounter {
   id: string;
   patientId: string;
@@ -20,8 +10,6 @@ export interface Encounter {
   objective: string | null;
   assessment: string | null;
   plan: string | null;
-  vitals: Vitals | null;
-  diagnosisCodes: string[];
   status: 'in_progress' | 'completed' | 'signed';
   signedAt: Date | null;
   createdAt: Date;
@@ -37,8 +25,6 @@ export interface CreateEncounterInput {
   objective?: string;
   assessment?: string;
   plan?: string;
-  vitals?: Vitals;
-  diagnosisCodes?: string[];
 }
 
 function mapRow(row: Record<string, unknown>): Encounter {
@@ -52,8 +38,6 @@ function mapRow(row: Record<string, unknown>): Encounter {
     objective: row.objective as string | null,
     assessment: row.assessment as string | null,
     plan: row.plan as string | null,
-    vitals: row.vitals as Vitals | null,
-    diagnosisCodes: (row.diagnosis_codes as string[]) || [],
     status: row.status as Encounter['status'],
     signedAt: row.signed_at as Date | null,
     createdAt: row.created_at as Date,
@@ -78,8 +62,8 @@ export async function create(input: CreateEncounterInput): Promise<Encounter> {
   const result = await query(
     `INSERT INTO encounters (
       patient_id, provider_id, encounter_date, chief_complaint,
-      subjective, objective, assessment, plan, vitals, diagnosis_codes
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      subjective, objective, assessment, plan
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     RETURNING *`,
     [
       input.patientId,
@@ -90,8 +74,6 @@ export async function create(input: CreateEncounterInput): Promise<Encounter> {
       input.objective || null,
       input.assessment || null,
       input.plan || null,
-      input.vitals ? JSON.stringify(input.vitals) : null,
-      input.diagnosisCodes || [],
     ]
   );
   return mapRow(result.rows[0]);
@@ -116,18 +98,6 @@ export async function update(id: string, input: Partial<CreateEncounterInput>): 
       values.push(input[key as keyof CreateEncounterInput] || null);
       paramCount++;
     }
-  }
-
-  if (input.vitals !== undefined) {
-    fields.push(`vitals = $${paramCount}`);
-    values.push(JSON.stringify(input.vitals));
-    paramCount++;
-  }
-
-  if (input.diagnosisCodes !== undefined) {
-    fields.push(`diagnosis_codes = $${paramCount}`);
-    values.push(input.diagnosisCodes);
-    paramCount++;
   }
 
   if (fields.length === 0) return findById(id);

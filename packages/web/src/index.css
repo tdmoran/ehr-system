@@ -9,11 +9,11 @@
   }
 
   html {
-    @apply text-navy-900;
+    @apply text-navy-900 dark:text-navy-100;
   }
 
   body {
-    @apply font-body bg-clinical-50 min-h-screen;
+    @apply font-body bg-clinical-50 dark:bg-navy-950 min-h-screen transition-colors duration-300;
   }
 
   /* Clinical scrollbar styling */
@@ -38,14 +38,14 @@
 @layer components {
   /* Input field styling with clinical precision */
   .input-clinical {
-    @apply w-full px-4 py-3 bg-white border border-navy-200 rounded-lg
-           font-body text-navy-900 placeholder-navy-400
+    @apply w-full px-4 py-3 bg-white dark:bg-navy-800 border border-navy-200 dark:border-navy-600 rounded-lg
+           font-body text-navy-900 dark:text-navy-100 placeholder-navy-400 dark:placeholder-navy-500
            transition-all duration-200
            focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20;
   }
 
   .input-clinical:hover:not(:focus) {
-    @apply border-navy-300;
+    @apply border-navy-300 dark:border-navy-500;
   }
 
   /* Primary button - confident teal */
@@ -60,16 +60,16 @@
 
   /* Secondary button - navy outline */
   .btn-secondary {
-    @apply px-6 py-3 bg-white text-navy-700 font-display font-semibold
-           border border-navy-200 rounded-lg shadow-clinical transition-all duration-200
-           hover:bg-navy-50 hover:border-navy-300
+    @apply px-6 py-3 bg-white dark:bg-navy-800 text-navy-700 dark:text-navy-200 font-display font-semibold
+           border border-navy-200 dark:border-navy-600 rounded-lg shadow-clinical transition-all duration-200
+           hover:bg-navy-50 dark:hover:bg-navy-700 hover:border-navy-300
            active:scale-[0.98]
            focus:outline-none focus:ring-2 focus:ring-navy-500/20;
   }
 
   /* Card component */
   .card-clinical {
-    @apply bg-white rounded-xl shadow-clinical border border-clinical-200;
+    @apply bg-white dark:bg-navy-900 rounded-xl shadow-clinical border border-clinical-200 dark:border-navy-700;
   }
 
   /* Status badge base */
@@ -78,19 +78,19 @@
   }
 
   .badge-success {
-    @apply bg-teal-100 text-teal-800;
+    @apply bg-teal-100 dark:bg-teal-900/50 text-teal-800 dark:text-teal-300;
   }
 
   .badge-warning {
-    @apply bg-amber-100 text-amber-800;
+    @apply bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300;
   }
 
   .badge-danger {
-    @apply bg-coral-100 text-coral-700;
+    @apply bg-coral-100 dark:bg-coral-900/50 text-coral-700 dark:text-coral-300;
   }
 
   .badge-neutral {
-    @apply bg-navy-100 text-navy-700;
+    @apply bg-navy-100 dark:bg-navy-700 text-navy-700 dark:text-navy-300;
   }
 }
 
@@ -108,3 +108,65 @@
 .stagger-3 { animation-delay: 0.2s; }
 .stagger-4 { animation-delay: 0.25s; }
 .stagger-5 { animation-delay: 0.3s; }
+
+/* Safe area insets for iPhone notch and home indicator */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-left {
+  padding-left: env(safe-area-inset-left);
+}
+
+.safe-area-right {
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Mobile touch improvements */
+@media (max-width: 768px) {
+  /* Larger touch targets on mobile */
+  .btn-primary,
+  .btn-secondary {
+    @apply min-h-[48px];
+  }
+
+  .input-clinical {
+    @apply min-h-[48px] text-base;
+  }
+
+  /* Prevent text size adjustment on iOS */
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Prevent zoom on input focus */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
+  /* Improve scrolling */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Disable pull-to-refresh on PWA */
+body {
+  overscroll-behavior-y: contain;
+}
+
+/* Hide scrollbar on mobile for cleaner look */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar {
+    display: none;
+  }
+
+  * {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

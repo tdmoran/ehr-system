@@ -9,16 +9,6 @@ const router = Router();
 
 router.use(authenticate);
 
-const vitalsSchema = z.object({
-  bp: z.string().optional(),
-  hr: z.number().optional(),
-  temp: z.number().optional(),
-  weight: z.number().optional(),
-  height: z.number().optional(),
-  respiratoryRate: z.number().optional(),
-  oxygenSaturation: z.number().optional(),
-});
-
 const createEncounterSchema = z.object({
   patientId: z.string().uuid(),
   providerId: z.string().uuid().optional(),
@@ -28,8 +18,6 @@ const createEncounterSchema = z.object({
   objective: z.string().optional(),
   assessment: z.string().optional(),
   plan: z.string().optional(),
-  vitals: vitalsSchema.optional(),
-  diagnosisCodes: z.array(z.string()).optional(),
 });
 
 router.get('/patient/:patientId', async (req, res) => {

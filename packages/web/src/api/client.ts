@@ -85,6 +85,74 @@ export const api = {
 
   signEncounter: (id: string) =>
     request<{ encounter: Encounter }>(`/encounters/${id}/sign`, { method: 'POST' }),
+
+  // Documents
+  getPatientDocuments: (patientId: string) =>
+    request<{ documents: Document[] }>(`/documents/patient/${patientId}`),
+
+  uploadDocument: async (patientId: string, file: File, description?: string): Promise<ApiResponse<{ document: Document }>> => {
+    const token = localStorage.getItem('token');
+    const formData = new FormData();
+    formData.append('file', file);
+    if (description) {
+      formData.append('description', description);
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/api/documents/patient/${patientId}`, {
+        method: 'POST',
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { error: data.error || 'Upload failed' };
+      }
+
+      return { data };
+    } catch (error) {
+      return { error: 'Network error. Please try again.' };
+    }
+  },
+
+  getDocumentUrl: (documentId: string) => `${API_URL}/api/documents/${documentId}/download`,
+
+  deleteDocument: (id: string) =>
+    request<{ message: string }>(`/documents/${id}`, { method: 'DELETE' }),
+
+  // Appointments
+  getAppointments: (startDate: string, endDate: string, providerId?: string) =>
+    request<{ appointments: Appointment[] }>(
+      `/appointments?startDate=${startDate}&endDate=${endDate}${providerId ? `&providerId=${providerId}` : ''}`
+    ),
+
+  getAppointment: (id: string) =>
+    request<{ appointment: Appointment }>(`/appointments/${id}`),
+
+  createAppointment: (appointment: CreateAppointmentInput) =>
+    request<{ appointment: Appointment }>('/appointments', {
+      method: 'POST',
+      body: JSON.stringify(appointment),
+    }),
+
+  updateAppointment: (id: string, appointment: Partial<CreateAppointmentInput> & { status?: string }) =>
+    request<{ appointment: Appointment }>(`/appointments/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(appointment),
+    }),
+
+  deleteAppointment: (id: string) =>
+    request<{ message: string }>(`/appointments/${id}`, { method: 'DELETE' }),
+
+  getAppointmentTypes: () =>
+    request<{ types: AppointmentType[] }>('/appointments/config/types'),
+
+  getProviders: () =>
+    request<{ providers: { id: string; firstName: string; lastName: string }[] }>('/appointments/config/providers'),
 };
 
 // Types
@@ -139,18 +207,8 @@ export interface Encounter {
   objective: string | null;
   assessment: string | null;
   plan: string | null;
-  vitals: Vitals | null;
-  diagnosisCodes: string[];
   status: 'in_progress' | 'completed' | 'signed';
   signedAt: string | null;
-}
-
-export interface Vitals {
-  bp?: string;
-  hr?: number;
-  temp?: number;
-  weight?: number;
-  height?: number;
 }
 
 export interface CreateEncounterInput {
@@ -160,6 +218,54 @@ export interface CreateEncounterInput {
   objective?: string;
   assessment?: string;
   plan?: string;
-  vitals?: Vitals;
-  diagnosisCodes?: string[];
+}
+
+export interface Document {
+  id: string;
+  patientId: string;
+  uploadedBy: string;
+  filename: string;
+  originalName: string;
+  mimeType: string;
+  fileSize: number;
+  description: string | null;
+  createdAt: string;
+}
+
+export interface Appointment {
+  id: string;
+  patientId: string;
+  providerId: string;
+  appointmentDate: string;
+  startTime: string;
+  endTime: string;
+  appointmentType: string;
+  reason: string | null;
+  status: 'scheduled' | 'confirmed' | 'checked_in' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
+  notes: string | null;
+  createdBy: string;
+  createdAt: string;
+  patientFirstName?: string;
+  patientLastName?: string;
+  patientMrn?: string;
+  providerFirstName?: string;
+  providerLastName?: string;
+}
+
+export interface AppointmentType {
+  id: string;
+  name: string;
+  durationMinutes: number;
+  color: string;
+}
+
+export interface CreateAppointmentInput {
+  patientId: string;
+  providerId: string;
+  appointmentDate: string;
+  startTime: string;
+  endTime: string;
+  appointmentType: string;
+  reason?: string;
+  notes?: string;
 }

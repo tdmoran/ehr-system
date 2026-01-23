@@ -45,19 +45,22 @@ export function usePatient(id: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchPatient = useCallback(async () => {
     if (!id) return;
 
     setLoading(true);
-    api.getPatient(id).then(({ data, error: apiError }) => {
-      if (apiError) {
-        setError(apiError);
-      } else if (data) {
-        setPatient(data.patient);
-      }
-      setLoading(false);
-    });
+    const { data, error: apiError } = await api.getPatient(id);
+    if (apiError) {
+      setError(apiError);
+    } else if (data) {
+      setPatient(data.patient);
+    }
+    setLoading(false);
   }, [id]);
 
-  return { patient, loading, error };
+  useEffect(() => {
+    fetchPatient();
+  }, [fetchPatient]);
+
+  return { patient, loading, error, refetch: fetchPatient };
 }

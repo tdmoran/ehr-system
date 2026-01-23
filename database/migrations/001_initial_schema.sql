@@ -62,42 +62,22 @@ CREATE TABLE encounters (
     objective TEXT,
     assessment TEXT,
     plan TEXT,
-    vitals JSONB,
-    diagnosis_codes TEXT[],
     status VARCHAR(50) DEFAULT 'in_progress' CHECK (status IN ('in_progress', 'completed', 'signed')),
     signed_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Medications
-CREATE TABLE medications (
+-- Documents
+CREATE TABLE documents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    patient_id UUID REFERENCES patients(id),
-    prescriber_id UUID REFERENCES users(id),
-    drug_name VARCHAR(255) NOT NULL,
-    dosage VARCHAR(100),
-    frequency VARCHAR(100),
-    route VARCHAR(50),
-    start_date DATE,
-    end_date DATE,
-    active BOOLEAN DEFAULT true,
-    notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Lab Results
-CREATE TABLE lab_results (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    patient_id UUID REFERENCES patients(id),
-    ordering_provider_id UUID REFERENCES users(id),
-    test_name VARCHAR(255) NOT NULL,
-    test_date TIMESTAMP,
-    result_value VARCHAR(100),
-    result_unit VARCHAR(50),
-    reference_range VARCHAR(100),
-    abnormal BOOLEAN DEFAULT false,
-    notes TEXT,
+    patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
+    uploaded_by UUID REFERENCES users(id),
+    filename VARCHAR(255) NOT NULL,
+    original_name VARCHAR(255) NOT NULL,
+    mime_type VARCHAR(100) NOT NULL,
+    file_size INTEGER NOT NULL,
+    description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -122,10 +102,8 @@ CREATE INDEX idx_patients_dob ON patients(date_of_birth);
 CREATE INDEX idx_encounters_patient ON encounters(patient_id);
 CREATE INDEX idx_encounters_provider ON encounters(provider_id);
 CREATE INDEX idx_encounters_date ON encounters(encounter_date);
-CREATE INDEX idx_medications_patient ON medications(patient_id);
-CREATE INDEX idx_medications_active ON medications(patient_id, active);
-CREATE INDEX idx_lab_results_patient ON lab_results(patient_id);
 CREATE INDEX idx_allergies_patient ON allergies(patient_id);
+CREATE INDEX idx_documents_patient ON documents(patient_id);
 CREATE INDEX idx_audit_patient ON audit_log(patient_id);
 CREATE INDEX idx_audit_user ON audit_log(user_id);
 CREATE INDEX idx_audit_created ON audit_log(created_at);

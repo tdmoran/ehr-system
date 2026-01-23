@@ -60,11 +60,8 @@ export default function Layout({ children }: LayoutProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
               </svg>
             </div>
-            <span className="font-display font-bold text-base md:text-lg text-white tracking-tight hidden sm:block">
-              ENT & Head/Neck EHR
-            </span>
-            <span className="font-display font-bold text-base text-white tracking-tight sm:hidden">
-              ENT EHR
+            <span className="font-display font-bold text-base md:text-lg text-white tracking-tight">
+              Rooms
             </span>
           </Link>
 
@@ -175,9 +172,57 @@ export default function Layout({ children }: LayoutProps) {
           <div className="p-4 md:p-6 lg:p-8">{children}</div>
         </main>
 
-        {/* Right Sidebar - Ads & RSS Feeds */}
+        {/* Right Sidebar - Resources, Videos, News & Ads */}
         <aside className="hidden lg:block w-80 xl:w-96 border-l border-clinical-200 dark:border-navy-700 bg-white dark:bg-navy-900">
           <div className="sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto p-4 space-y-6">
+            {/* RCSI Training Videos */}
+            <div className="space-y-4">
+              <h3 className="font-display font-semibold text-navy-900 dark:text-navy-100 text-sm uppercase tracking-wide flex items-center gap-2">
+                <VideoIcon className="w-4 h-4 text-teal-500" />
+                Training Videos
+              </h3>
+              <p className="text-xs text-navy-500 dark:text-navy-400 font-body">
+                RCSI ENT Remote Training Sessions
+              </p>
+              <div className="space-y-1 max-h-64 overflow-y-auto pr-2 scrollbar-thin">
+                <VideoLink title="Neck Dissection" url="https://vimeo.com/1012424850/6cf73d3755" />
+                <VideoLink title="Endoscopic Ear Surgery" url="https://vimeo.com/1021002624/b9d0af20bd" />
+                <VideoLink title="Facial Nerve Palsy & Reanimation" url="https://vimeo.com/1070998239/ec00424d73" />
+                <VideoLink title="Paediatric Otitis Media & Mastoiditis" url="https://vimeo.com/1065805536/223e4ac6f4" />
+                <VideoLink title="CSF Leakage and Repair" url="https://vimeo.com/1100321147/860c9b7607" />
+                <VideoLink title="Tympanoplasty" url="https://vimeo.com/1023230651/83674f0265" />
+                <VideoLink title="Adult OSA" url="https://vimeo.com/1128817393/219275d6a1" />
+                <VideoLink title="Cholesteatoma Management" url="https://vimeo.com/756418806/9652b023e0" />
+                <VideoLink title="Laser Principles & Cordectomy" url="https://vimeo.com/1123518047/b1cdb3cb99" />
+                <VideoLink title="FESS Surgery Workshop" url="https://vimeo.com/933660505/2e42d0aec9" />
+                <VideoLink title="Septo-Rhinoplasty" url="https://vimeo.com/949927371/d5250b09fb" />
+                <VideoLink title="Sinonasal Cancer" url="https://vimeo.com/953558028/66c20666aa" />
+                <VideoLink title="Thyroid Nodule Assessment" url="https://vimeo.com/876336179/7e79a709ed" />
+                <VideoLink title="Laryngeal Cancer Management" url="https://vimeo.com/793360404/d5f92951ff" />
+                <VideoLink title="Pituitary Surgery" url="https://vimeo.com/782897249/fc9fc123e9" />
+              </div>
+              <a
+                href="https://msurgery.ie/home/surgical-training-programmes/higher-surgical-training/higher-surgical-training-otolaryngology-surgery-ent/remote-training-sessions-ent/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-center text-xs text-teal-600 dark:text-teal-400 hover:underline font-body py-2"
+              >
+                View all 100+ videos →
+              </a>
+            </div>
+
+            {/* Quick Links */}
+            <div className="space-y-4">
+              <h3 className="font-display font-semibold text-navy-900 dark:text-navy-100 text-sm uppercase tracking-wide">
+                Resources
+              </h3>
+              <div className="space-y-2">
+                <QuickLink label="AAO-HNS Guidelines" url="https://www.entnet.org/quality-practice/quality-products/clinical-practice-guidelines/" />
+                <QuickLink label="ICD-10 Lookup" url="https://www.icd10data.com/" />
+                <QuickLink label="Drug Interactions" url="https://www.drugs.com/drug_interactions.html" />
+              </div>
+            </div>
+
             {/* RSS Feed Section */}
             <div className="space-y-4">
               <h3 className="font-display font-semibold text-navy-900 dark:text-navy-100 text-sm uppercase tracking-wide">
@@ -233,19 +278,6 @@ export default function Layout({ children }: LayoutProps) {
                 <p className="text-xs text-navy-500 dark:text-navy-400 text-center font-body">Advertisement</p>
               </div>
             </div>
-
-            {/* Quick Links */}
-            <div className="space-y-4">
-              <h3 className="font-display font-semibold text-navy-900 dark:text-navy-100 text-sm uppercase tracking-wide">
-                Resources
-              </h3>
-              <div className="space-y-2">
-                <QuickLink label="AAO-HNS Guidelines" />
-                <QuickLink label="ICD-10 Lookup" />
-                <QuickLink label="Drug Interactions" />
-                <QuickLink label="CME Courses" />
-              </div>
-            </div>
           </div>
         </aside>
       </div>
@@ -268,17 +300,44 @@ function RSSFeedItem({ title, source, time }: { title: string; source: string; t
   );
 }
 
-function QuickLink({ label }: { label: string }) {
+function QuickLink({ label, url }: { label: string; url: string }) {
   return (
     <a
-      href="#"
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
       className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-body text-navy-600 dark:text-navy-300 hover:bg-clinical-50 dark:hover:bg-navy-800 hover:text-teal-600 dark:hover:text-teal-400 transition-colors"
     >
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
       </svg>
       {label}
     </a>
+  );
+}
+
+function VideoLink({ title, url }: { title: string; url: string }) {
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-2 px-2 py-1.5 rounded text-xs font-body text-navy-600 dark:text-navy-300 hover:bg-clinical-50 dark:hover:bg-navy-800 hover:text-teal-600 dark:hover:text-teal-400 transition-colors"
+    >
+      <svg className="w-3 h-3 flex-shrink-0 text-coral-500" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M8 5v14l11-7z" />
+      </svg>
+      <span className="truncate">{title}</span>
+    </a>
+  );
+}
+
+function VideoIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.91 11.672a.375.375 0 010 .656l-5.603 3.113a.375.375 0 01-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112z" />
+    </svg>
   );
 }
 

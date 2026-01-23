@@ -1,7 +1,7 @@
 {
-  "name": "ENT & Head/Neck EHR",
-  "short_name": "ENT EHR",
-  "description": "Otolaryngology Electronic Health Records System",
+  "name": "Rooms",
+  "short_name": "Rooms",
+  "description": "Rooms - Medical Practice Management",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

@@ -10,7 +10,7 @@ INSERT INTO users (id, email, password_hash, first_name, last_name, role) VALUES
 
 -- Provider (doctor)
 INSERT INTO users (id, email, password_hash, first_name, last_name, role) VALUES
-('a0000000-0000-0000-0000-000000000002', 'drsmith@example.com', '$2b$10$hkCFa4g6UL4PzHft.gVNNesI5KyTV.wWV38AtP9pX6dPC4H24lWzy', 'John', 'Smith', 'provider');
+('a0000000-0000-0000-0000-000000000002', 'drmoran@example.com', '$2b$10$hkCFa4g6UL4PzHft.gVNNesI5KyTV.wWV38AtP9pX6dPC4H24lWzy', 'Tom', 'Moran', 'provider');
 
 -- Nurse
 INSERT INTO users (id, email, password_hash, first_name, last_name, role) VALUES

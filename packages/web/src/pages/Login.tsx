@@ -5,8 +5,8 @@ import { useAuth } from '../context/AuthContext';
 export default function Login() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('drmoran@example.com');
+  const [password, setPassword] = useState('password123');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -50,7 +50,7 @@ export default function Login() {
                 </svg>
               </div>
               <span className="font-display font-bold text-xl text-white tracking-tight">
-                Otolaryngology &amp; Head and Neck EHR
+                Rooms
               </span>
             </div>
           </div>
@@ -61,7 +61,7 @@ export default function Login() {
               <span className="text-teal-400">Streamlined.</span>
             </h1>
             <p className="text-navy-300 text-lg max-w-md font-body leading-relaxed">
-              Secure, intuitive electronic health records designed for otolaryngology and head & neck surgery practices.
+              Your medical practice, streamlined. Manage patients, schedules, and records in one place.
             </p>
           </div>
 
@@ -88,7 +88,7 @@ export default function Login() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
               </svg>
             </div>
-            <span className="font-display font-bold text-lg text-navy-900">ENT & Head/Neck EHR</span>
+            <span className="font-display font-bold text-lg text-navy-900">Rooms</span>
           </div>
 
           <div className="space-y-2 mb-8">
@@ -160,7 +160,7 @@ export default function Login() {
           </form>
 
           <p className="mt-8 text-center text-sm text-navy-400 font-body">
-            Demo credentials: <span className="font-mono text-navy-600">drsmith@example.com</span>
+            Demo credentials: <span className="font-mono text-navy-600">drmoran@example.com</span>
           </p>
         </div>
       </div>

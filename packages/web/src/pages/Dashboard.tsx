@@ -293,7 +293,7 @@ export default function Dashboard() {
       slots.push({
         type: 'work',
         id: apt.id,
-        title: `${apt.patientLastName}, ${apt.patientFirstName}`,
+        title: `${apt.patientFirstName} ${apt.patientLastName}`,
         subtitle: apt.appointmentType,
         startTime: apt.startTime,
         endTime: apt.endTime,
@@ -513,8 +513,8 @@ export default function Dashboard() {
             <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
             <span className="text-sm font-medium font-body uppercase tracking-wide">In Progress</span>
           </div>
-          <h2 className="font-display text-xl font-bold text-navy-900 dark:text-navy-100">
-            {inProgress.patientLastName}, {inProgress.patientFirstName}
+          <h2 className="font-display text-xl font-bold text-teal-600 dark:text-teal-400">
+            {inProgress.patientFirstName} {inProgress.patientLastName}
           </h2>
           <p className="text-navy-600 dark:text-navy-400 font-body mt-1">
             {inProgress.appointmentType} · Started at {formatTime(inProgress.startTime)}
@@ -535,8 +535,8 @@ export default function Dashboard() {
             <ClockIcon className="w-4 h-4" />
             <span className="text-sm font-medium font-body uppercase tracking-wide">Up Next</span>
           </div>
-          <h2 className="font-display text-xl font-bold text-navy-900 dark:text-navy-100">
-            {nextAppointment.patientLastName}, {nextAppointment.patientFirstName}
+          <h2 className="font-display text-xl font-bold text-teal-600 dark:text-teal-400">
+            {nextAppointment.patientFirstName} {nextAppointment.patientLastName}
           </h2>
           <p className="text-navy-600 dark:text-navy-400 font-body mt-1">
             {nextAppointment.appointmentType} · {formatTime(nextAppointment.startTime)}
@@ -636,8 +636,8 @@ export default function Dashboard() {
                   {/* Appointment Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className={`font-display font-medium ${isPast ? 'text-navy-500 dark:text-navy-400' : 'text-navy-900 dark:text-navy-100'}`}>
-                        {apt.patientLastName}, {apt.patientFirstName}
+                      <p className={`font-display font-semibold ${isPast ? 'text-teal-400 dark:text-teal-500' : 'text-teal-600 dark:text-teal-400'}`}>
+                        {apt.patientFirstName} {apt.patientLastName}
                       </p>
                       {isCurrent && (
                         <span className="badge badge-success">In Progress</span>
@@ -762,8 +762,8 @@ export default function Dashboard() {
                             {formatTime(apt.startTime)}
                           </span>
                           <div className={`w-2 h-2 rounded-full flex-shrink-0 ${getStatusColor(apt.status)}`} />
-                          <span className="text-sm font-body text-navy-700 dark:text-navy-300 truncate">
-                            {apt.patientLastName}, {apt.patientFirstName}
+                          <span className="text-sm font-body font-semibold text-teal-600 dark:text-teal-400 truncate">
+                            {apt.patientFirstName} {apt.patientLastName}
                           </span>
                           <span className="text-xs font-body text-navy-400 dark:text-navy-500 truncate hidden sm:inline">
                             {apt.appointmentType}

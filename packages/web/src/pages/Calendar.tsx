@@ -356,9 +356,9 @@ export default function Calendar() {
                           onClick={(e) => handleAppointmentClick(e, apt)}
                           className="text-xs p-1 rounded truncate text-white font-medium cursor-pointer hover:opacity-80"
                           style={{ backgroundColor: getAppointmentColor(apt.appointmentType) }}
-                          title={`${apt.startTime.substring(0, 5)} - ${apt.patientLastName}, ${apt.patientFirstName}`}
+                          title={`${apt.startTime.substring(0, 5)} - ${apt.patientFirstName} ${apt.patientLastName}`}
                         >
-                          {apt.startTime.substring(0, 5)} {apt.patientLastName}
+                          {apt.startTime.substring(0, 5)} {apt.patientFirstName} {apt.patientLastName}
                         </div>
                       ))}
                       {dayAppointments.length > 3 && (
@@ -433,7 +433,7 @@ export default function Calendar() {
                     <option value="">Select patient...</option>
                     {patients.map(patient => (
                       <option key={patient.id} value={patient.id}>
-                        {patient.lastName}, {patient.firstName} ({patient.mrn})
+                        {patient.firstName} {patient.lastName} ({patient.mrn})
                       </option>
                     ))}
                   </select>

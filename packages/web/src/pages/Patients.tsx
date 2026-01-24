@@ -174,15 +174,10 @@ export default function Patients() {
                 style={{ animationFillMode: 'backwards' }}
               >
                 {/* Patient Name - Always visible */}
-                <div className="col-span-4 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-navy-100 to-navy-200 flex items-center justify-center flex-shrink-0">
-                    <span className="font-display font-semibold text-navy-600">
-                      {patient.firstName[0]}{patient.lastName[0]}
-                    </span>
-                  </div>
+                <div className="col-span-4 flex items-center">
                   <div className="min-w-0">
-                    <p className="font-display font-medium text-navy-900 truncate">
-                      {patient.lastName}, {patient.firstName}
+                    <p className="font-display font-semibold text-teal-600 dark:text-teal-400 truncate">
+                      {patient.firstName} {patient.lastName}
                     </p>
                     <p className="text-sm text-navy-400 font-body md:hidden">
                       {patient.mrn}

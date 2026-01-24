@@ -5,9 +5,10 @@ import { config } from '../config/index.js';
 export interface AuthUser {
   id: string;
   email: string;
-  role: 'provider' | 'nurse' | 'admin' | 'billing';
+  role: 'provider' | 'nurse' | 'admin' | 'billing' | 'secretary';
   firstName: string;
   lastName: string;
+  providerId?: string;
 }
 
 declare global {

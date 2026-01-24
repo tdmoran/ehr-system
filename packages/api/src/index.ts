@@ -32,12 +32,11 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// For local development
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(config.port, () => {
-    logger.info(`API server running on port ${config.port}`);
-  });
-}
+// Start server
+const port = process.env.PORT || config.port;
+app.listen(port, () => {
+  logger.info(`API server running on port ${port}`);
+});
 
 // Export for Vercel
 export default app;

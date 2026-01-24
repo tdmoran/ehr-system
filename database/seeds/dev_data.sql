@@ -16,6 +16,10 @@ INSERT INTO users (id, email, password_hash, first_name, last_name, role) VALUES
 INSERT INTO users (id, email, password_hash, first_name, last_name, role) VALUES
 ('a0000000-0000-0000-0000-000000000003', 'nursejones@example.com', '$2b$10$hkCFa4g6UL4PzHft.gVNNesI5KyTV.wWV38AtP9pX6dPC4H24lWzy', 'Sarah', 'Jones', 'nurse');
 
+-- Secretary (linked to Dr. Moran)
+INSERT INTO users (id, email, password_hash, first_name, last_name, role, provider_id) VALUES
+('a0000000-0000-0000-0000-000000000004', 'secretary.moran@example.com', '$2b$10$hkCFa4g6UL4PzHft.gVNNesI5KyTV.wWV38AtP9pX6dPC4H24lWzy', 'Emily', 'Smith', 'secretary', 'a0000000-0000-0000-0000-000000000002');
+
 -- Insert test patients (fake data)
 INSERT INTO patients (id, mrn, first_name, last_name, date_of_birth, gender, email, phone, address_line1, city, state, zip, insurance_provider, insurance_id) VALUES
 ('b0000000-0000-0000-0000-000000000001', 'MRN-001', 'Alice', 'Johnson', '1985-03-15', 'female', 'alice.j@email.com', '555-0101', '123 Main St', 'Springfield', 'IL', '62701', 'Blue Cross', 'BC-12345'),

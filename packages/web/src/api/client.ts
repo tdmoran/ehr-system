@@ -153,6 +153,12 @@ export const api = {
 
   getProviders: () =>
     request<{ providers: { id: string; firstName: string; lastName: string }[] }>('/appointments/config/providers'),
+
+  createBulkAppointments: (appointments: CreateAppointmentInput[]) =>
+    request<{ appointments: Appointment[]; errors: { index: number; error: string }[] }>('/appointments/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ appointments }),
+    }),
 };
 
 // Types
@@ -161,7 +167,8 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
-  role: 'provider' | 'nurse' | 'admin' | 'billing';
+  role: 'provider' | 'nurse' | 'admin' | 'billing' | 'secretary';
+  providerId?: string;
 }
 
 export interface Patient {

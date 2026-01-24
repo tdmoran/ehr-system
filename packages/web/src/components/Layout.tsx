@@ -311,6 +311,7 @@ export default function Layout({ children }: LayoutProps) {
                 Resources
               </h3>
               <div className="space-y-2">
+                <QuickLink label="Cancer Staging App" url="https://tdmoran.github.io/CancerStageApp/" />
                 <QuickLink label="AAO-HNS Guidelines" url="https://www.entnet.org/quality-practice/quality-products/clinical-practice-guidelines/" />
                 <QuickLink label="ICD-10 Lookup" url="https://www.icd10data.com/" />
                 <QuickLink label="Drug Interactions" url="https://www.drugs.com/drug_interactions.html" />

@@ -234,22 +234,10 @@ export default function Layout({ children }: LayoutProps) {
               <p className="text-xs text-navy-500 dark:text-navy-400 font-body">
                 RCSI ENT Remote Training Sessions
               </p>
-              <div className="space-y-1 max-h-64 overflow-y-auto pr-2 scrollbar-thin">
+              <div className="space-y-1">
                 <VideoLink title="Neck Dissection" url="https://vimeo.com/1012424850/6cf73d3755" />
                 <VideoLink title="Endoscopic Ear Surgery" url="https://vimeo.com/1021002624/b9d0af20bd" />
                 <VideoLink title="Facial Nerve Palsy & Reanimation" url="https://vimeo.com/1070998239/ec00424d73" />
-                <VideoLink title="Paediatric Otitis Media & Mastoiditis" url="https://vimeo.com/1065805536/223e4ac6f4" />
-                <VideoLink title="CSF Leakage and Repair" url="https://vimeo.com/1100321147/860c9b7607" />
-                <VideoLink title="Tympanoplasty" url="https://vimeo.com/1023230651/83674f0265" />
-                <VideoLink title="Adult OSA" url="https://vimeo.com/1128817393/219275d6a1" />
-                <VideoLink title="Cholesteatoma Management" url="https://vimeo.com/756418806/9652b023e0" />
-                <VideoLink title="Laser Principles & Cordectomy" url="https://vimeo.com/1123518047/b1cdb3cb99" />
-                <VideoLink title="FESS Surgery Workshop" url="https://vimeo.com/933660505/2e42d0aec9" />
-                <VideoLink title="Septo-Rhinoplasty" url="https://vimeo.com/949927371/d5250b09fb" />
-                <VideoLink title="Sinonasal Cancer" url="https://vimeo.com/953558028/66c20666aa" />
-                <VideoLink title="Thyroid Nodule Assessment" url="https://vimeo.com/876336179/7e79a709ed" />
-                <VideoLink title="Laryngeal Cancer Management" url="https://vimeo.com/793360404/d5f92951ff" />
-                <VideoLink title="Pituitary Surgery" url="https://vimeo.com/782897249/fc9fc123e9" />
               </div>
               <a
                 href="https://msurgery.ie/home/surgical-training-programmes/higher-surgical-training/higher-surgical-training-otolaryngology-surgery-ent/remote-training-sessions-ent/"

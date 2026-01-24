@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -7,11 +7,48 @@ interface LayoutProps {
   children: ReactNode;
 }
 
+// Sponsor logos displayed as styled brand marks
+const SPONSORS = [
+  { name: 'Ambu', display: 'ambu', style: 'lowercase', bgColor: '#003366', textColor: '#fff' },
+  { name: 'CCMed', display: 'CC Med', style: 'normal', bgColor: '#0d9488', textColor: '#fff' },
+  { name: 'Eurosurgical', display: 'ES', style: 'bold', bgColor: '#6d28d9', textColor: '#fff' },
+  { name: 'Fannin', display: 'fannin', style: 'lowercase', bgColor: '#059669', textColor: '#fff' },
+  { name: 'Irish Hospital Supplies', display: 'IHS', style: 'bold', bgColor: '#0284c7', textColor: '#fff' },
+  { name: 'NBCL', display: 'nbcl', style: 'lowercase', bgColor: '#dc2626', textColor: '#fff' },
+  { name: 'NeilMed', display: 'NeilMed', style: 'normal', bgColor: '#1e40af', textColor: '#fff' },
+  { name: 'Nutricia', display: 'nutricia', style: 'lowercase', bgColor: '#0891b2', textColor: '#fff' },
+  { name: 'Sentient Healthcare', display: 'SH', style: 'bold', bgColor: '#7c3aed', textColor: '#fff' },
+  { name: 'Severn', display: 'SEVERN', style: 'uppercase', bgColor: '#4f46e5', textColor: '#fff' },
+  { name: 'Terumo', display: 'TERUMO', style: 'uppercase', bgColor: '#be123c', textColor: '#fff' },
+  { name: 'Thor Medical', display: 'THOR', style: 'uppercase', bgColor: '#b45309', textColor: '#fff' },
+  { name: 'Baxter', display: 'Baxter', style: 'normal', bgColor: '#1d4ed8', textColor: '#fff' },
+  { name: 'Gemini', display: 'GEMINI', style: 'uppercase', bgColor: '#0d9488', textColor: '#fff' },
+  { name: 'HC21 Healthcare', display: 'HC21', style: 'bold', bgColor: '#16a34a', textColor: '#fff' },
+  { name: 'Soluvos Medical', display: 'Soluvos', style: 'normal', bgColor: '#65a30d', textColor: '#fff' },
+  { name: 'Tekno Surgical', display: 'TEKNO', style: 'uppercase', bgColor: '#c2410c', textColor: '#fff' },
+  { name: 'Viatris', display: 'VIATRIS', style: 'uppercase', bgColor: '#047857', textColor: '#fff' },
+  { name: 'Ethicon', display: 'ETHICON', style: 'uppercase', bgColor: '#1e40af', textColor: '#fff' },
+  { name: 'Bicara Therapeutics', display: 'BICARA', style: 'uppercase', bgColor: '#a21caf', textColor: '#fff' },
+  { name: 'DP Medical', display: 'DP', style: 'bold', bgColor: '#0284c7', textColor: '#fff' },
+  { name: 'RCSI', display: 'RCSI', style: 'uppercase', bgColor: '#991b1b', textColor: '#fff' },
+  { name: 'Diploma Life Sciences', display: 'DLS', style: 'bold', bgColor: '#7e22ce', textColor: '#fff' },
+  { name: 'A. Menarini', display: 'Menarini', style: 'normal', bgColor: '#1d4ed8', textColor: '#fff' },
+];
+
 export default function Layout({ children }: LayoutProps) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, setTheme, isAuto, setIsAuto } = useTheme();
+  const [sponsorIndex, setSponsorIndex] = useState(0);
+
+  // Cycle through sponsors every 2 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSponsorIndex((prev) => (prev + 2) % SPONSORS.length);
+    }, 120000);
+    return () => clearInterval(interval);
+  }, []);
 
   const baseNavItems = [
     { path: '/', label: 'Dashboard', icon: DashboardIcon },
@@ -224,20 +261,48 @@ export default function Layout({ children }: LayoutProps) {
               </a>
             </div>
 
-            {/* Sample Ads */}
+            {/* Cycling Sponsor Ads */}
             <div className="space-y-3">
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
-                <p className="text-xs text-blue-600 dark:text-blue-400 font-medium uppercase tracking-wide mb-2">Sponsored</p>
-                <h4 className="font-display font-semibold text-navy-900 dark:text-navy-100 text-sm">ENT Surgical Instruments</h4>
-                <p className="text-xs text-navy-600 dark:text-navy-400 mt-1">Premium quality instruments for otolaryngology procedures.</p>
-                <a href="#" className="inline-block mt-2 text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline">Learn More →</a>
-              </div>
-              <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 rounded-xl p-4 border border-emerald-200 dark:border-emerald-800">
-                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium uppercase tracking-wide mb-2">Sponsored</p>
-                <h4 className="font-display font-semibold text-navy-900 dark:text-navy-100 text-sm">CME Conference 2026</h4>
-                <p className="text-xs text-navy-600 dark:text-navy-400 mt-1">Join leading ENT specialists in Dublin this September.</p>
-                <a href="#" className="inline-block mt-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium hover:underline">Register Now →</a>
-              </div>
+              <h3 className="font-display font-semibold text-navy-900 dark:text-navy-100 text-sm uppercase tracking-wide">
+                Sponsors
+              </h3>
+              {[0, 1].map((offset) => {
+                const sponsor = SPONSORS[(sponsorIndex + offset) % SPONSORS.length];
+                const getFontStyle = () => {
+                  switch (sponsor.style) {
+                    case 'uppercase': return 'uppercase tracking-wider';
+                    case 'lowercase': return 'lowercase';
+                    case 'bold': return 'font-black tracking-tight';
+                    default: return '';
+                  }
+                };
+                const fontSize = sponsor.display.length > 6 ? 'text-[9px]' : sponsor.display.length > 4 ? 'text-[10px]' : 'text-xs';
+                return (
+                  <a
+                    key={`${sponsor.name}-${offset}`}
+                    href="#"
+                    className="block bg-white dark:bg-navy-800 rounded-xl p-4 border border-clinical-200 dark:border-navy-700 hover:shadow-md transition-all duration-500 hover:border-clinical-300 dark:hover:border-navy-600"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-14 h-14 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm"
+                        style={{ backgroundColor: sponsor.bgColor }}
+                      >
+                        <span
+                          className={`font-display font-bold ${fontSize} ${getFontStyle()}`}
+                          style={{ color: sponsor.textColor }}
+                        >
+                          {sponsor.display}
+                        </span>
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="font-display font-semibold text-navy-900 dark:text-navy-100 text-sm truncate">{sponsor.name}</h4>
+                        <p className="text-xs text-navy-500 dark:text-navy-400 mt-0.5">Sponsored</p>
+                      </div>
+                    </div>
+                  </a>
+                );
+              })}
             </div>
 
             {/* Quick Links */}

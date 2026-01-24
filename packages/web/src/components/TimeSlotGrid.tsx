@@ -20,7 +20,7 @@ for (let hour = 8; hour < 17; hour++) {
 }
 
 export default function TimeSlotGrid({
-  date,
+  date: _date,
   appointments,
   appointmentTypes,
   onSlotClick,
@@ -105,7 +105,7 @@ export default function TimeSlotGrid({
         </div>
 
         {/* Time slots */}
-        {TIME_SLOTS.map((time, index) => {
+        {TIME_SLOTS.map((time) => {
           const appointment = getAppointmentAtTime(time);
           const isOccupied = isSlotOccupied(time);
           const shouldSkip = slotsToSkip.has(time);

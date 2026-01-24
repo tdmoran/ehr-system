@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { api, Appointment, AppointmentType, Patient, CreateAppointmentInput } from '../api/client';
+import { api, Appointment, AppointmentType, Patient } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import TimeSlotGrid from '../components/TimeSlotGrid';
 import QuickBooking from '../components/QuickBooking';

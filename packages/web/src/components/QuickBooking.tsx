@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { api, Patient, AppointmentType, CreateAppointmentInput } from '../api/client';
 
 interface QuickBookingProps {

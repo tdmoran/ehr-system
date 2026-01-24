@@ -56,12 +56,12 @@ export default function Login() {
           </div>
 
           <div className="space-y-6">
-            <h1 className="font-display text-4xl xl:text-5xl font-bold text-white leading-tight">
-              Specialized care.<br />
-              <span className="text-teal-400">Streamlined.</span>
+            <h1 className="font-display text-5xl xl:text-6xl font-bold text-white leading-tight">
+              Otolaryngology &<br />
+              <span className="text-teal-400">Head and Neck EHR</span>
             </h1>
             <p className="text-navy-300 text-lg max-w-md font-body leading-relaxed">
-              Your medical practice, streamlined. Manage patients, schedules, and records in one place.
+              Your ENT practice, streamlined. Manage patients, schedules, and records in one place.
             </p>
           </div>
 

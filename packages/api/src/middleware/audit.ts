@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { query } from '../db/index.js';
 
-type AuditAction = 'view' | 'create' | 'update' | 'delete' | 'login' | 'logout';
+type AuditAction = 'view' | 'create' | 'update' | 'delete' | 'login' | 'logout' | 'bulk_create';
 type ResourceType = 'patient' | 'encounter' | 'medication' | 'lab_result' | 'user' | 'session' | 'appointment' | 'document';
 
 interface AuditEntry {

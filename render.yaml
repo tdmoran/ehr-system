@@ -1,5 +1,4 @@
 services:
-  # API Backend
   - type: web
     name: sxrooms-api
     runtime: node
@@ -17,16 +16,11 @@ services:
       - key: CORS_ORIGIN
         value: https://www.sxrooms.com
 
-  # Web Frontend
   - type: static
     name: sxrooms-web
     rootDir: packages/web
     buildCommand: npm install && npm run build
     staticPublishPath: dist
-    headers:
-      - path: /*
-        name: Cache-Control
-        value: public, max-age=0, must-revalidate
     routes:
       - type: rewrite
         source: /*

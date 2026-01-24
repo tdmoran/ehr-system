@@ -38,6 +38,7 @@ router.post('/login', validate(loginSchema), async (req, res) => {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        providerId: user.providerId,
       },
     });
   } catch (error) {
@@ -60,6 +61,7 @@ router.get('/me', authenticate, async (req, res) => {
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role,
+      providerId: user.providerId,
     });
   } catch (error) {
     console.error('Get user error:', error);

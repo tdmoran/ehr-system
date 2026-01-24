@@ -4,14 +4,15 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- Users (providers, nurses, admins)
+-- Users (providers, nurses, admins, secretaries)
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
-    role VARCHAR(50) NOT NULL CHECK (role IN ('provider', 'nurse', 'admin', 'billing')),
+    role VARCHAR(50) NOT NULL CHECK (role IN ('provider', 'nurse', 'admin', 'billing', 'secretary')),
+    provider_id UUID REFERENCES users(id),
     active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -108,3 +109,4 @@ CREATE INDEX idx_audit_patient ON audit_log(patient_id);
 CREATE INDEX idx_audit_user ON audit_log(user_id);
 CREATE INDEX idx_audit_created ON audit_log(created_at);
 CREATE INDEX idx_audit_resource ON audit_log(resource_type, resource_id);
+CREATE INDEX idx_users_provider ON users(provider_id) WHERE provider_id IS NOT NULL;

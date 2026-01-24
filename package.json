@@ -13,7 +13,8 @@
     "test": "npm run test -w packages/api && npm run test -w packages/web",
     "lint": "eslint packages/*/src",
     "db:migrate": "npm run migrate -w packages/api",
-    "db:setup": "node scripts/migrate.js"
+    "db:setup": "node scripts/migrate.js",
+    "db:add-secretary": "node scripts/add-secretary.js"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

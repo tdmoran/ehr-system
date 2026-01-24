@@ -59,7 +59,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create appointment
-router.post('/', authorize('provider', 'nurse', 'admin'), async (req, res) => {
+router.post('/', authorize('provider', 'nurse', 'admin', 'secretary'), async (req, res) => {
   try {
     const { patientId, providerId, appointmentDate, startTime, endTime, appointmentType, reason, notes } = req.body;
 
@@ -95,7 +95,7 @@ router.post('/', authorize('provider', 'nurse', 'admin'), async (req, res) => {
 });
 
 // Update appointment
-router.put('/:id', authorize('provider', 'nurse', 'admin'), async (req, res) => {
+router.put('/:id', authorize('provider', 'nurse', 'admin', 'secretary'), async (req, res) => {
   try {
     const appointment = await appointmentService.update(req.params.id, req.body);
 
@@ -119,7 +119,7 @@ router.put('/:id', authorize('provider', 'nurse', 'admin'), async (req, res) => 
 });
 
 // Delete appointment
-router.delete('/:id', authorize('provider', 'admin'), async (req, res) => {
+router.delete('/:id', authorize('provider', 'admin', 'secretary'), async (req, res) => {
   try {
     const appointment = await appointmentService.findById(req.params.id);
 
@@ -139,6 +139,58 @@ router.delete('/:id', authorize('provider', 'admin'), async (req, res) => {
     res.json({ message: 'Appointment deleted' });
   } catch (error) {
     console.error('Delete appointment error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Bulk create appointments
+router.post('/bulk', authorize('provider', 'nurse', 'admin', 'secretary'), async (req, res) => {
+  try {
+    const { appointments } = req.body;
+
+    if (!Array.isArray(appointments) || appointments.length === 0) {
+      return res.status(400).json({ error: 'appointments array is required' });
+    }
+
+    const createdAppointments = [];
+    const errors = [];
+
+    for (let i = 0; i < appointments.length; i++) {
+      const appt = appointments[i];
+      const { patientId, providerId, appointmentDate, startTime, endTime, appointmentType, reason, notes } = appt;
+
+      if (!patientId || !providerId || !appointmentDate || !startTime || !endTime || !appointmentType) {
+        errors.push({ index: i, error: 'Missing required fields' });
+        continue;
+      }
+
+      try {
+        const appointment = await appointmentService.create({
+          patientId,
+          providerId,
+          appointmentDate,
+          startTime,
+          endTime,
+          appointmentType,
+          reason,
+          notes,
+          createdBy: req.user!.id,
+        });
+        createdAppointments.push(appointment);
+      } catch (err) {
+        errors.push({ index: i, error: 'Failed to create appointment' });
+      }
+    }
+
+    await logAudit(req, {
+      action: 'bulk_create',
+      resourceType: 'appointment',
+      details: { count: createdAppointments.length, errors: errors.length },
+    });
+
+    res.status(201).json({ appointments: createdAppointments, errors });
+  } catch (error) {
+    console.error('Bulk create appointments error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

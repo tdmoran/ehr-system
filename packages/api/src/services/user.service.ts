@@ -8,7 +8,8 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
-  role: 'provider' | 'nurse' | 'admin' | 'billing';
+  role: 'provider' | 'nurse' | 'admin' | 'billing' | 'secretary';
+  providerId?: string;
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -19,7 +20,8 @@ export interface CreateUserInput {
   password: string;
   firstName: string;
   lastName: string;
-  role: 'provider' | 'nurse' | 'admin' | 'billing';
+  role: 'provider' | 'nurse' | 'admin' | 'billing' | 'secretary';
+  providerId?: string;
 }
 
 function mapRow(row: Record<string, unknown>): User {
@@ -29,6 +31,7 @@ function mapRow(row: Record<string, unknown>): User {
     firstName: row.first_name as string,
     lastName: row.last_name as string,
     role: row.role as User['role'],
+    providerId: row.provider_id as string | undefined,
     active: row.active as boolean,
     createdAt: row.created_at as Date,
     updatedAt: row.updated_at as Date,
@@ -82,6 +85,7 @@ export function generateToken(user: User): string {
     role: user.role,
     firstName: user.firstName,
     lastName: user.lastName,
+    providerId: user.providerId,
   };
   return jwt.sign(payload, config.jwt.secret, {
     expiresIn: config.jwt.expiresIn as jwt.SignOptions['expiresIn']

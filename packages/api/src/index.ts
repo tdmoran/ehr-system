@@ -7,7 +7,21 @@ import { logger } from './utils/logger.js';
 const app = express();
 
 app.use(cors({
-  origin: config.cors.origin,
+  origin: (origin, callback) => {
+    const allowedOrigins = [
+      config.cors.origin,
+      'https://www.sxrooms.net',
+      'https://sxrooms.net',
+      'http://localhost:5173',
+    ].filter(Boolean);
+
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Allow all for now, tighten later if needed
+    }
+  },
   credentials: true,
 }));
 

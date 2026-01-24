@@ -1,0 +1,36 @@
+services:
+  # API Backend
+  - type: web
+    name: sxrooms-api
+    runtime: node
+    region: oregon
+    rootDir: packages/api
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: https://www.sxrooms.com
+
+  # Web Frontend
+  - type: static
+    name: sxrooms-web
+    rootDir: packages/web
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=0, must-revalidate
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        value: https://sxrooms-api.onrender.com

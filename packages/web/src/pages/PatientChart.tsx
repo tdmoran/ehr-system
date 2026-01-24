@@ -251,25 +251,18 @@ export default function PatientChart() {
         <svg className="w-4 h-4 text-navy-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
         </svg>
-        <span className="text-navy-900 font-medium">{patient.lastName}, {patient.firstName}</span>
+        <span className="text-teal-600 dark:text-teal-400 font-semibold">{patient.firstName} {patient.lastName}</span>
       </nav>
 
       {/* Patient Header */}
       <div className="card-clinical p-6">
         <div className="flex flex-col md:flex-row md:items-start gap-6">
-          {/* Avatar */}
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center shadow-lg shadow-teal-500/20">
-            <span className="font-display font-bold text-3xl text-white">
-              {patient.firstName[0]}{patient.lastName[0]}
-            </span>
-          </div>
-
           {/* Patient Info */}
           <div className="flex-1">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div>
-                <h1 className="font-display text-2xl font-bold text-navy-900">
-                  {patient.lastName}, {patient.firstName}
+                <h1 className="font-display text-2xl font-bold text-teal-600 dark:text-teal-400">
+                  {patient.firstName} {patient.lastName}
                 </h1>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-navy-500 font-body text-sm">
                   <span className="font-mono bg-navy-50 px-2 py-0.5 rounded">{patient.mrn}</span>
@@ -507,7 +500,7 @@ export default function PatientChart() {
               <div>
                 <h2 className="font-display text-xl font-bold text-navy-900">New Encounter</h2>
                 <p className="text-navy-500 font-body text-sm mt-1">
-                  {patient.lastName}, {patient.firstName} • {patient.mrn}
+                  {patient.firstName} {patient.lastName} • {patient.mrn}
                 </p>
               </div>
               <button

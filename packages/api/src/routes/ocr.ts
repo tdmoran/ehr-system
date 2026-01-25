@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import path from 'path';
+import fs from 'fs';
 import * as ocrService from '../services/ocr.service.js';
 import * as documentService from '../services/document.service.js';
 import * as patientService from '../services/patient.service.js';
@@ -15,7 +16,7 @@ router.use(authenticate);
 // Trigger OCR processing for a document
 router.post(
   '/documents/:documentId/process',
-  authorize('provider', 'nurse', 'admin'),
+  authorize('provider', 'nurse', 'admin', 'secretary'),
   async (req, res) => {
     try {
       const { documentId } = req.params;
@@ -61,6 +62,16 @@ router.post(
       (async () => {
         try {
           const filePath = path.join(uploadsDir, document.filename);
+
+          // Check if file exists
+          if (!fs.existsSync(filePath)) {
+            console.error('OCR error: File not found at', filePath);
+            await ocrService.updateOcrResult(ocrResult.id, {
+              processingStatus: 'failed',
+              errorMessage: 'File not found on server. Files may have been lost during deployment.',
+            });
+            return;
+          }
 
           // Run OCR
           const result = await ocrService.processDocument({

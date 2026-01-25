@@ -68,7 +68,7 @@ router.get('/patient/:patientId', async (req, res) => {
 // Upload a document
 router.post(
   '/patient/:patientId',
-  authorize('provider', 'nurse', 'admin'),
+  authorize('provider', 'nurse', 'admin', 'secretary'),
   upload.single('file'),
   async (req, res) => {
     try {

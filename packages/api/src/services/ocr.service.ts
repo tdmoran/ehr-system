@@ -210,10 +210,8 @@ async function getWorker(): Promise<Worker> {
     });
     // Set Tesseract parameters for better document OCR
     await worker.setParameters({
-      tessedit_pageseg_mode: '6', // Assume uniform block of text
-      tessedit_ocr_engine_mode: '2', // Legacy + LSTM (best accuracy)
       preserve_interword_spaces: '1',
-    });
+    } as Partial<Tesseract.WorkerParams>);
   }
   return worker;
 }

@@ -159,6 +159,84 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ appointments }),
     }),
+
+  // OCR
+  processDocumentOcr: (documentId: string) =>
+    request<{ message: string; ocrResultId: string; status: string }>(`/ocr/documents/${documentId}/process`, {
+      method: 'POST',
+    }),
+
+  getOcrResult: (documentId: string) =>
+    request<{ ocrResult: OcrResult }>(`/ocr/documents/${documentId}/result`),
+
+  getExtractedFields: (documentId: string) =>
+    request<{ ocrResult: OcrResult; fieldMappings: OcrFieldMapping[] }>(`/ocr/documents/${documentId}/extracted-fields`),
+
+  applyOcrFields: (documentId: string, fieldIds: string[]) =>
+    request<{ message: string; updatedFields: string[]; patient: Patient }>(`/ocr/documents/${documentId}/apply-fields`, {
+      method: 'POST',
+      body: JSON.stringify({ fieldIds }),
+    }),
+
+  rejectOcrFields: (documentId: string, fieldIds: string[]) =>
+    request<{ message: string; rejectedCount: number }>(`/ocr/documents/${documentId}/reject-fields`, {
+      method: 'POST',
+      body: JSON.stringify({ fieldIds }),
+    }),
+
+  // Referrals
+  uploadReferralScans: async (files: File[]): Promise<ApiResponse<{ message: string; referrals: ReferralUploadResult[] }>> => {
+    const token = localStorage.getItem('token');
+    const formData = new FormData();
+    files.forEach((file) => {
+      formData.append('files', file);
+    });
+
+    try {
+      const response = await fetch(`${API_URL}/api/referrals/scan`, {
+        method: 'POST',
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { error: data.error || 'Upload failed' };
+      }
+
+      return { data };
+    } catch (error) {
+      return { error: 'Network error. Please try again.' };
+    }
+  },
+
+  getPendingReferrals: () =>
+    request<{ referrals: PendingReferral[] }>('/referrals/pending'),
+
+  getReferral: (id: string) =>
+    request<{ referral: ReferralDetail }>(`/referrals/${id}`),
+
+  createPatientFromReferral: (id: string, patientData: CreatePatientInput) =>
+    request<{ message: string; patient: Patient }>(`/referrals/${id}/create-patient`, {
+      method: 'POST',
+      body: JSON.stringify(patientData),
+    }),
+
+  addReferralToPatient: (id: string, data: { patientId: string; referringPhysician?: string; referringFacility?: string; reasonForReferral?: string }) =>
+    request<{ message: string; patient: Patient }>(`/referrals/${id}/add-to-patient`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  skipReferral: (id: string) =>
+    request<{ message: string }>(`/referrals/${id}/skip`, {
+      method: 'POST',
+    }),
+
+  getReferralFileUrl: (id: string) => `${API_URL}/api/referrals/${id}/download`,
 };
 
 // Types
@@ -275,4 +353,94 @@ export interface CreateAppointmentInput {
   appointmentType: string;
   reason?: string;
   notes?: string;
+}
+
+// OCR Types
+export interface OcrResult {
+  id: string;
+  documentId: string;
+  rawText: string | null;
+  confidenceScore: number | null;
+  documentType: 'referral' | 'lab_result' | 'intake_form' | 'unknown' | null;
+  extractedData: Record<string, unknown> | null;
+  processingStatus: 'pending' | 'processing' | 'completed' | 'failed';
+  errorMessage: string | null;
+  processedAt: string | null;
+  createdAt: string;
+}
+
+export interface OcrFieldMapping {
+  id: string;
+  ocrResultId: string;
+  patientId: string | null;
+  fieldName: string;
+  extractedValue: string;
+  originalValue: string | null;
+  confidenceScore: number | null;
+  status: 'pending' | 'applied' | 'rejected';
+  appliedAt: string | null;
+  appliedBy: string | null;
+  createdAt: string;
+}
+
+// Referral Types
+export interface ReferralUploadResult {
+  id: string;
+  filename: string;
+  status: string;
+}
+
+export interface PendingReferral {
+  id: string;
+  referralScanId: string;
+  filename: string;
+  originalName: string;
+  processingStatus: string;
+  rawText: string | null;
+  confidenceScore: number | null;
+  patientFirstName: string | null;
+  patientLastName: string | null;
+  patientDob: string | null;
+  patientPhone: string | null;
+  referringPhysician: string | null;
+  referringFacility: string | null;
+  reasonForReferral: string | null;
+  matchedPatientId: string | null;
+  matchedPatientFirstName: string | null;
+  matchedPatientLastName: string | null;
+  matchedPatientMrn: string | null;
+  matchConfidence: number | null;
+  resolutionStatus: string;
+  createdAt: string;
+}
+
+export interface ReferralDetail {
+  id: string;
+  referralScanId: string;
+  rawText: string | null;
+  confidenceScore: number | null;
+  extractedData: Record<string, unknown> | null;
+  patientFirstName: string | null;
+  patientLastName: string | null;
+  patientDob: string | null;
+  patientPhone: string | null;
+  referringPhysician: string | null;
+  referringFacility: string | null;
+  reasonForReferral: string | null;
+  matchedPatientId: string | null;
+  matchConfidence: number | null;
+  resolutionStatus: string;
+  resolvedPatientId: string | null;
+  resolvedBy: string | null;
+  resolvedAt: string | null;
+  processedAt: string | null;
+  createdAt: string;
+  scan: {
+    id: string;
+    filename: string;
+    originalName: string;
+    mimeType: string | null;
+    fileSize: number | null;
+    processingStatus: string;
+  };
 }

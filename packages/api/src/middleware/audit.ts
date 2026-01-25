@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { query } from '../db/index.js';
 
 type AuditAction = 'view' | 'create' | 'update' | 'delete' | 'login' | 'logout' | 'bulk_create';
-type ResourceType = 'patient' | 'encounter' | 'medication' | 'lab_result' | 'user' | 'session' | 'appointment' | 'document';
+type ResourceType = 'patient' | 'encounter' | 'medication' | 'lab_result' | 'user' | 'session' | 'appointment' | 'document' | 'ocr_processing' | 'ocr_result' | 'ocr_field_mappings' | 'referral_scan';
 
 interface AuditEntry {
   userId?: string;

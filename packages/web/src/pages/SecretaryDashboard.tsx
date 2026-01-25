@@ -5,8 +5,10 @@ import TimeSlotGrid from '../components/TimeSlotGrid';
 import QuickBooking from '../components/QuickBooking';
 import WaitingRoom from '../components/WaitingRoom';
 import BulkScheduler from '../components/BulkScheduler';
+import { ReferralScanner } from '../components/referrals/ReferralScanner';
+import { ReferralReviewList } from '../components/referrals/ReferralReviewList';
 
-type TabType = 'schedule' | 'waiting' | 'bulk';
+type TabType = 'schedule' | 'waiting' | 'bulk' | 'referrals';
 
 export default function SecretaryDashboard() {
   const { user } = useAuth();
@@ -20,6 +22,9 @@ export default function SecretaryDashboard() {
   // Booking modal state
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedSlotTime, setSelectedSlotTime] = useState<string | null>(null);
+
+  // Referral refresh trigger
+  const [referralRefreshTrigger, setReferralRefreshTrigger] = useState(0);
 
   // The secretary's assigned provider ID
   const providerId = user?.providerId;
@@ -234,6 +239,10 @@ export default function SecretaryDashboard() {
           <UploadIcon className="w-4 h-4" />
           Bulk Import
         </TabButton>
+        <TabButton active={activeTab === 'referrals'} onClick={() => setActiveTab('referrals')}>
+          <DocumentScanIcon className="w-4 h-4" />
+          Referrals
+        </TabButton>
       </div>
 
       {/* Tab Content */}
@@ -262,6 +271,25 @@ export default function SecretaryDashboard() {
           selectedDate={selectedDate}
           onComplete={handleBulkComplete}
         />
+      )}
+
+      {activeTab === 'referrals' && (
+        <div className="space-y-6">
+          <div className="card-clinical p-6">
+            <h3 className="text-lg font-semibold text-navy-900 dark:text-navy-100 mb-4">
+              Scan Referral Letters
+            </h3>
+            <ReferralScanner
+              onUploadComplete={() => setReferralRefreshTrigger((t) => t + 1)}
+            />
+          </div>
+          <div className="card-clinical p-6">
+            <ReferralReviewList
+              refreshTrigger={referralRefreshTrigger}
+              onResolved={() => setReferralRefreshTrigger((t) => t + 1)}
+            />
+          </div>
+        </div>
       )}
 
       {/* Quick Booking Modal */}
@@ -350,6 +378,14 @@ function UploadIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+    </svg>
+  );
+}
+
+function DocumentScanIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v16.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9zm3.75 11.625a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
     </svg>
   );
 }

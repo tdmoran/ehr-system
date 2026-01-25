@@ -36,3 +36,9 @@ coverage/
 
 # Misc
 *.pem
+
+# Uploaded files
+packages/api/uploads/
+
+# Tesseract trained data (large file)
+*.traineddata

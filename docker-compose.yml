@@ -1,4 +1,24 @@
 services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: ehr-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=ehr
+      - POSTGRES_PASSWORD=ehr
+      - POSTGRES_DB=ehr
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ehr -d ehr"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   # API Server
   api:
     build:
@@ -10,13 +30,16 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3000
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=postgresql://ehr:ehr@postgres:5432/ehr
       - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-production}
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
     volumes:
       - ./packages/api/src:/app/src:ro
       - uploads:/app/uploads
       - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
   # Web Frontend
@@ -37,4 +60,5 @@ services:
     restart: unless-stopped
 
 volumes:
+  postgres_data:
   uploads:

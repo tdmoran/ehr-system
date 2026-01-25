@@ -4,6 +4,8 @@ import patientRoutes from './patients.js';
 import encounterRoutes from './encounters.js';
 import documentRoutes from './documents.js';
 import appointmentRoutes from './appointments.js';
+import ocrRoutes from './ocr.js';
+import referralRoutes from './referrals.js';
 
 const router = Router();
 
@@ -12,5 +14,7 @@ router.use('/patients', patientRoutes);
 router.use('/encounters', encounterRoutes);
 router.use('/documents', documentRoutes);
 router.use('/appointments', appointmentRoutes);
+router.use('/ocr', ocrRoutes);
+router.use('/referrals', referralRoutes);
 
 export default router;

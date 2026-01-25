@@ -9,7 +9,7 @@ export interface Appointment {
   endTime: string;
   appointmentType: string;
   reason: string | null;
-  status: 'scheduled' | 'confirmed' | 'checked_in' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
+  status: 'scheduled' | 'confirmed' | 'checked_in' | 'in_progress' | 'completed' | 'checked_out' | 'cancelled' | 'no_show';
   notes: string | null;
   createdBy: string;
   createdAt: Date;

@@ -399,9 +399,10 @@ export default function Dashboard() {
   const completedTasks = personalTasks.filter(t => t.completed);
 
   // Get appointments by status
-  const completedToday = todayAppointments.filter(a => a.status === 'completed').length;
-  const remainingToday = todayAppointments.filter(a => a.status !== 'completed' && a.status !== 'cancelled').length;
-  const inProgress = todayAppointments.find(a => a.status === 'in_progress' || a.status === 'checked_in');
+  const completedToday = todayAppointments.filter(a => a.status === 'completed' || a.status === 'checked_out').length;
+  const remainingToday = todayAppointments.filter(a => a.status !== 'completed' && a.status !== 'checked_out' && a.status !== 'cancelled').length;
+  const inProgress = todayAppointments.find(a => a.status === 'in_progress');
+  const waitingRoom = todayAppointments.filter(a => a.status === 'checked_in');
 
   const nextAppointment = getNextAppointment();
 
@@ -577,6 +578,65 @@ export default function Dashboard() {
           <p className="text-navy-600 dark:text-navy-400 font-body mt-1">
             {completedToday} patient{completedToday !== 1 ? 's' : ''} seen today
           </p>
+        </div>
+      )}
+
+      {/* Waiting Room Panel */}
+      {waitingRoom.length > 0 && (
+        <div className="card-clinical overflow-hidden border-2 border-amber-300 dark:border-amber-600">
+          <div className="px-6 py-4 bg-amber-50 dark:bg-amber-900/30 border-b border-amber-200 dark:border-amber-700 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
+                <UsersIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <h2 className="font-display font-semibold text-amber-800 dark:text-amber-200">Waiting Room</h2>
+                <p className="text-sm text-amber-600 dark:text-amber-400">{waitingRoom.length} patient{waitingRoom.length !== 1 ? 's' : ''} ready</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+              <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              <span className="text-sm font-medium">Live</span>
+            </div>
+          </div>
+          <div className="divide-y divide-amber-100 dark:divide-amber-900/50">
+            {waitingRoom.map((apt) => {
+              const checkedInTime = apt.startTime; // Use appointment time as proxy
+              return (
+                <div
+                  key={apt.id}
+                  className="flex items-center gap-4 px-6 py-4 hover:bg-amber-50/50 dark:hover:bg-amber-900/20 transition-colors"
+                >
+                  <div className="w-12 h-12 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center flex-shrink-0">
+                    <span className="text-lg font-bold text-teal-700 dark:text-teal-400">
+                      {apt.patientFirstName?.[0]}{apt.patientLastName?.[0]}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-display font-semibold text-navy-900 dark:text-navy-100">
+                      {apt.patientFirstName} {apt.patientLastName}
+                    </p>
+                    <p className="text-sm text-navy-500 dark:text-navy-400">
+                      {apt.appointmentType}
+                      {apt.reason && ` · ${apt.reason}`}
+                    </p>
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                      Scheduled: {formatTime(checkedInTime)}
+                    </p>
+                  </div>
+                  <Link
+                    to={`/patients/${apt.patientId}`}
+                    className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    Start Visit
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                    </svg>
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -1641,6 +1701,14 @@ function SettingsIcon({ className }: { className?: string }) {
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
       <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  );
+}
+
+function UsersIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
     </svg>
   );
 }

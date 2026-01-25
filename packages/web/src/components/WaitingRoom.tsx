@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Appointment } from '../api/client';
+import CheckInModal from './CheckInModal';
+import CheckOutModal from './CheckOutModal';
 
 interface WaitingRoomProps {
   appointments: Appointment[];
@@ -7,22 +9,25 @@ interface WaitingRoomProps {
 }
 
 type SortBy = 'time' | 'status' | 'wait';
-type FilterStatus = 'all' | 'scheduled' | 'checked_in' | 'in_progress' | 'completed';
+type FilterStatus = 'all' | 'scheduled' | 'checked_in' | 'in_progress' | 'completed' | 'checked_out';
 
 const STATUS_ORDER: Record<string, number> = {
   checked_in: 0,
   in_progress: 1,
-  scheduled: 2,
-  confirmed: 3,
-  completed: 4,
-  cancelled: 5,
-  no_show: 6,
+  completed: 2,
+  scheduled: 3,
+  confirmed: 4,
+  checked_out: 5,
+  cancelled: 6,
+  no_show: 7,
 };
 
 export default function WaitingRoom({ appointments, onStatusUpdate }: WaitingRoomProps) {
   const [sortBy, setSortBy] = useState<SortBy>('time');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [checkInAppointment, setCheckInAppointment] = useState<Appointment | null>(null);
+  const [checkOutAppointment, setCheckOutAppointment] = useState<Appointment | null>(null);
 
   // Filter and sort appointments
   const sortedAppointments = useMemo(() => {
@@ -58,6 +63,34 @@ export default function WaitingRoom({ appointments, onStatusUpdate }: WaitingRoo
     setUpdatingId(null);
   };
 
+  // Handle check-in button click - opens modal for verification
+  const handleCheckInClick = (appointment: Appointment) => {
+    setCheckInAppointment(appointment);
+  };
+
+  // Handle successful check-in from modal
+  const handleCheckInComplete = () => {
+    setCheckInAppointment(null);
+    // Trigger refresh of appointments
+    if (checkInAppointment) {
+      onStatusUpdate(checkInAppointment.id, 'checked_in');
+    }
+  };
+
+  // Handle check-out button click - opens modal for checkout
+  const handleCheckOutClick = (appointment: Appointment) => {
+    setCheckOutAppointment(appointment);
+  };
+
+  // Handle successful check-out from modal
+  const handleCheckOutComplete = () => {
+    setCheckOutAppointment(null);
+    // Trigger refresh of appointments
+    if (checkOutAppointment) {
+      onStatusUpdate(checkOutAppointment.id, 'checked_out');
+    }
+  };
+
   // Get status badge style
   const getStatusStyle = (status: string) => {
     const styles: Record<string, { bg: string; text: string; border: string }> = {
@@ -85,6 +118,11 @@ export default function WaitingRoom({ appointments, onStatusUpdate }: WaitingRoo
         bg: 'bg-green-100 dark:bg-green-900/30',
         text: 'text-green-700 dark:text-green-400',
         border: 'border-green-200 dark:border-green-800',
+      },
+      checked_out: {
+        bg: 'bg-purple-100 dark:bg-purple-900/30',
+        text: 'text-purple-700 dark:text-purple-400',
+        border: 'border-purple-200 dark:border-purple-800',
       },
       cancelled: {
         bg: 'bg-gray-100 dark:bg-gray-800',
@@ -117,6 +155,10 @@ export default function WaitingRoom({ appointments, onStatusUpdate }: WaitingRoo
       case 'in_progress':
         return [
           { label: 'Complete', status: 'completed', variant: 'success' },
+        ];
+      case 'completed':
+        return [
+          { label: 'Check Out', status: 'checked_out', variant: 'success' },
         ];
       default:
         return [];
@@ -154,6 +196,7 @@ export default function WaitingRoom({ appointments, onStatusUpdate }: WaitingRoo
             <option value="checked_in">Checked In</option>
             <option value="in_progress">In Progress</option>
             <option value="completed">Completed</option>
+            <option value="checked_out">Checked Out</option>
           </select>
         </div>
 
@@ -226,7 +269,16 @@ export default function WaitingRoom({ appointments, onStatusUpdate }: WaitingRoo
                       {actions.map(action => (
                         <button
                           key={action.status}
-                          onClick={() => handleStatusChange(appointment.id, action.status)}
+                          onClick={() => {
+                            // Use modal for check-in and check-out, direct status change for others
+                            if (action.status === 'checked_in') {
+                              handleCheckInClick(appointment);
+                            } else if (action.status === 'checked_out') {
+                              handleCheckOutClick(appointment);
+                            } else {
+                              handleStatusChange(appointment.id, action.status);
+                            }
+                          }}
                           disabled={isUpdating}
                           className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
                             action.variant === 'primary'
@@ -256,6 +308,24 @@ export default function WaitingRoom({ appointments, onStatusUpdate }: WaitingRoo
           );
         })}
       </div>
+
+      {/* Check-In Modal */}
+      {checkInAppointment && (
+        <CheckInModal
+          appointment={checkInAppointment}
+          onClose={() => setCheckInAppointment(null)}
+          onCheckIn={handleCheckInComplete}
+        />
+      )}
+
+      {/* Check-Out Modal */}
+      {checkOutAppointment && (
+        <CheckOutModal
+          appointment={checkOutAppointment}
+          onClose={() => setCheckOutAppointment(null)}
+          onCheckOut={handleCheckOutComplete}
+        />
+      )}
     </div>
   );
 }

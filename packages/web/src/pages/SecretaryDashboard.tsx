@@ -197,6 +197,35 @@ export default function SecretaryDashboard() {
         </div>
       </div>
 
+      {/* Quick Action - Process Referrals */}
+      <button
+        onClick={() => setActiveTab('referrals')}
+        className="w-full group relative overflow-hidden rounded-2xl bg-gradient-to-r from-teal-500 via-teal-600 to-emerald-600 p-6 text-left shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.01]"
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/5 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+        <div className="relative flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
+              <DocumentScanIcon className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-white font-display">
+                Process Referral Letters
+              </h3>
+              <p className="text-teal-100 text-sm mt-1 font-body">
+                Scan and process incoming referral letters with AI-powered extraction
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-white/80 group-hover:text-white transition-colors">
+            <span className="text-sm font-medium hidden sm:block">Click to start</span>
+            <svg className="w-6 h-6 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </div>
+        </div>
+      </button>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <StatCard label="Total" value={stats.total} color="navy" />

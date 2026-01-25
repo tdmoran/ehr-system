@@ -204,7 +204,16 @@ let worker: Worker | null = null;
 
 async function getWorker(): Promise<Worker> {
   if (!worker) {
-    worker = await createWorker('eng');
+    worker = await createWorker('eng', 1, {
+      // Logger for debugging (disable in production)
+      // logger: m => console.log(m),
+    });
+    // Set Tesseract parameters for better document OCR
+    await worker.setParameters({
+      tessedit_pageseg_mode: '6', // Assume uniform block of text
+      tessedit_ocr_engine_mode: '2', // Legacy + LSTM (best accuracy)
+      preserve_interword_spaces: '1',
+    });
   }
   return worker;
 }
@@ -221,7 +230,8 @@ async function convertPdfToImages(pdfPath: string): Promise<string[]> {
   }
 
   try {
-    const document = await pdf(pdfPath, { scale: 2.0 });
+    // Higher scale (3.0) for better OCR accuracy
+    const document = await pdf(pdfPath, { scale: 3.0 });
     let pageNum = 0;
 
     for await (const image of document) {
@@ -239,11 +249,25 @@ async function convertPdfToImages(pdfPath: string): Promise<string[]> {
 }
 
 async function preprocessImage(imagePath: string): Promise<Buffer> {
-  // Preprocess image for better OCR accuracy
+  // Advanced preprocessing for better OCR accuracy
   return await sharp(imagePath)
+    // Convert to grayscale
     .grayscale()
+    // Increase contrast
+    .linear(1.2, -20)
+    // Normalize to use full dynamic range
     .normalize()
-    .sharpen()
+    // Sharpen for clearer text edges
+    .sharpen({ sigma: 1.5 })
+    // Apply slight median filter to reduce noise
+    .median(1)
+    // Ensure consistent DPI for Tesseract (300 DPI is optimal)
+    .resize({
+      width: 2550, // 8.5 inches * 300 DPI
+      height: 3300, // 11 inches * 300 DPI
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
     .toBuffer();
 }
 

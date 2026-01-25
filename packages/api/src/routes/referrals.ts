@@ -147,18 +147,18 @@ router.get('/:id', authorize('secretary', 'admin', 'nurse', 'provider'), async (
 
 // Create new patient from referral
 const createPatientSchema = z.object({
-  firstName: z.string().min(1).max(100),
-  lastName: z.string().min(1).max(100),
-  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  gender: z.string().max(20).optional(),
-  phone: z.string().max(20).optional(),
-  email: z.string().email().optional().or(z.literal('')),
-  addressLine1: z.string().max(200).optional(),
-  city: z.string().max(100).optional(),
-  state: z.string().max(50).optional(),
-  zip: z.string().max(20).optional(),
-  insuranceProvider: z.string().max(100).optional(),
-  insuranceId: z.string().max(50).optional(),
+  firstName: z.string().min(1, 'First name is required').max(100),
+  lastName: z.string().min(1, 'Last name is required').max(100),
+  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date of birth must be in YYYY-MM-DD format'),
+  gender: z.string().max(20).optional().or(z.literal('')),
+  phone: z.string().max(20).optional().or(z.literal('')),
+  email: z.string().email('Invalid email format').optional().or(z.literal('')),
+  addressLine1: z.string().max(200).optional().or(z.literal('')),
+  city: z.string().max(100).optional().or(z.literal('')),
+  state: z.string().max(50).optional().or(z.literal('')),
+  zip: z.string().max(20).optional().or(z.literal('')),
+  insuranceProvider: z.string().max(100).optional().or(z.literal('')),
+  insuranceId: z.string().max(50).optional().or(z.literal('')),
 });
 
 router.post(

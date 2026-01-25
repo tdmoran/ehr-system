@@ -56,16 +56,37 @@ export function ReferralReviewModal({ referral, onClose, onResolved }: ReferralR
     setError(null);
 
     // Validate required fields
-    if (!patientForm.firstName || !patientForm.lastName || !patientForm.dateOfBirth) {
-      setError('First name, last name, and date of birth are required.');
+    if (!patientForm.firstName?.trim()) {
+      setError('First name is required.');
+      setLoading(false);
+      return;
+    }
+    if (!patientForm.lastName?.trim()) {
+      setError('Last name is required.');
+      setLoading(false);
+      return;
+    }
+    if (!patientForm.dateOfBirth) {
+      setError('Date of birth is required. Please select a date.');
+      setLoading(false);
+      return;
+    }
+    // Validate date format
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(patientForm.dateOfBirth)) {
+      setError('Date of birth must be in YYYY-MM-DD format. Please use the date picker.');
       setLoading(false);
       return;
     }
 
-    const { error: apiError } = await api.createPatientFromReferral(referral.id, patientForm);
+    const { error: apiError, data } = await api.createPatientFromReferral(referral.id, patientForm);
 
     if (apiError) {
-      setError(apiError);
+      // Try to parse validation details if available
+      if (typeof apiError === 'string' && apiError.includes('Validation failed')) {
+        setError('Validation failed. Please check all required fields are filled correctly.');
+      } else {
+        setError(apiError);
+      }
       setLoading(false);
       return;
     }

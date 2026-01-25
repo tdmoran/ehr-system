@@ -26,6 +26,13 @@ async function request<T>(
     const data = await response.json();
 
     if (!response.ok) {
+      // Handle validation errors with details
+      if (data.details && Array.isArray(data.details)) {
+        const detailMessages = data.details
+          .map((d: { field: string; message: string }) => `${d.field}: ${d.message}`)
+          .join(', ');
+        return { error: `${data.error || 'Validation failed'}: ${detailMessages}` };
+      }
       return { error: data.error || 'An error occurred' };
     }
 

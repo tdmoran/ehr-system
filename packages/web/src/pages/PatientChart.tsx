@@ -330,7 +330,7 @@ export default function PatientChart() {
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div>
                 <h1 className="font-display text-2xl font-bold text-teal-600 dark:text-teal-400">
-                  {patient.firstName} {patient.lastName}
+                  {patient.firstName} {patient.lastName}'s Chart
                 </h1>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-navy-500 font-body text-sm">
                   <span className="font-mono bg-navy-50 px-2 py-0.5 rounded">{patient.mrn}</span>

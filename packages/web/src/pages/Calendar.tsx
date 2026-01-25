@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { api, Appointment, AppointmentType, Patient, CreateAppointmentInput } from '../api/client';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -29,6 +30,10 @@ export default function Calendar() {
   const [formData, setFormData] = useState<Partial<CreateAppointmentInput>>({});
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Day view state
+  const [showDayView, setShowDayView] = useState(false);
+  const [dayViewDate, setDayViewDate] = useState<Date | null>(null);
 
   // Get first and last day of month for fetching appointments
   const getMonthRange = (date: Date) => {
@@ -121,8 +126,14 @@ export default function Calendar() {
     setCurrentDate(new Date());
   };
 
-  // Handle day click
+  // Handle day click - show day view with patient list
   const handleDayClick = (date: Date) => {
+    setDayViewDate(date);
+    setShowDayView(true);
+  };
+
+  // Open new appointment modal from day view
+  const openNewAppointmentModal = (date: Date) => {
     setSelectedDate(date);
     setSelectedAppointment(null);
     setFormData({
@@ -133,6 +144,7 @@ export default function Calendar() {
       providerId: selectedProvider || providers[0]?.id || '',
     });
     setFormError('');
+    setShowDayView(false);
     setShowModal(true);
   };
 
@@ -586,6 +598,132 @@ export default function Calendar() {
                 </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Day View Modal */}
+      {showDayView && dayViewDate && (
+        <div className="fixed inset-0 bg-navy-900/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-navy-900 rounded-2xl shadow-clinical-xl max-w-2xl w-full my-8 animate-slide-up max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-clinical-200 dark:border-navy-700 flex-shrink-0">
+              <div>
+                <h2 className="font-display text-xl font-bold text-navy-900 dark:text-navy-100">
+                  {dayViewDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                </h2>
+                <p className="text-navy-500 dark:text-navy-400 font-body text-sm mt-1">
+                  {getAppointmentsForDay(dayViewDate).length} appointment{getAppointmentsForDay(dayViewDate).length !== 1 ? 's' : ''}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowDayView(false)}
+                className="w-8 h-8 rounded-lg hover:bg-navy-50 dark:hover:bg-navy-800 flex items-center justify-center"
+              >
+                <svg className="w-5 h-5 text-navy-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Patient List */}
+            <div className="flex-1 overflow-y-auto">
+              {getAppointmentsForDay(dayViewDate).length === 0 ? (
+                <div className="p-12 text-center">
+                  <svg className="w-12 h-12 text-navy-300 dark:text-navy-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                  </svg>
+                  <p className="text-navy-500 dark:text-navy-400 font-body">No appointments scheduled</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-clinical-100 dark:divide-navy-700">
+                  {getAppointmentsForDay(dayViewDate)
+                    .sort((a, b) => a.startTime.localeCompare(b.startTime))
+                    .map(apt => {
+                      const statusColors: Record<string, string> = {
+                        scheduled: 'bg-navy-100 text-navy-700 dark:bg-navy-800 dark:text-navy-300',
+                        confirmed: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+                        checked_in: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+                        in_progress: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
+                        completed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+                        checked_out: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+                        cancelled: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+                        no_show: 'bg-coral-100 text-coral-700 dark:bg-coral-900/30 dark:text-coral-400',
+                      };
+
+                      return (
+                        <Link
+                          key={apt.id}
+                          to={`/patients/${apt.patientId}`}
+                          className="flex items-center gap-4 px-6 py-4 hover:bg-clinical-50 dark:hover:bg-navy-800/50 cursor-pointer transition-colors"
+                        >
+                          {/* Time */}
+                          <div className="w-20 text-right flex-shrink-0">
+                            <p className="font-display font-semibold text-navy-900 dark:text-navy-100">
+                              {apt.startTime.substring(0, 5).replace(/^0/, '').replace(':00', ':00').split(':').map((p, i) => {
+                                if (i === 0) {
+                                  const h = parseInt(p);
+                                  return h > 12 ? h - 12 : h || 12;
+                                }
+                                return p;
+                              }).join(':')} {parseInt(apt.startTime.substring(0, 2)) >= 12 ? 'PM' : 'AM'}
+                            </p>
+                            <p className="text-xs text-navy-400 dark:text-navy-500">
+                              {apt.endTime.substring(0, 5).replace(/^0/, '').split(':').map((p, i) => {
+                                if (i === 0) {
+                                  const h = parseInt(p);
+                                  return h > 12 ? h - 12 : h || 12;
+                                }
+                                return p;
+                              }).join(':')} {parseInt(apt.endTime.substring(0, 2)) >= 12 ? 'PM' : 'AM'}
+                            </p>
+                          </div>
+
+                          {/* Color bar */}
+                          <div
+                            className="w-1 h-12 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: getAppointmentColor(apt.appointmentType) }}
+                          />
+
+                          {/* Patient info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-display font-semibold text-teal-600 dark:text-teal-400 hover:underline">
+                              {apt.patientFirstName} {apt.patientLastName}
+                            </p>
+                            <p className="text-sm text-navy-500 dark:text-navy-400 truncate">
+                              {apt.appointmentType}
+                              {apt.reason && ` · ${apt.reason}`}
+                            </p>
+                          </div>
+
+                          {/* Status badge */}
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 ${statusColors[apt.status] || statusColors.scheduled}`}>
+                            {apt.status.replace('_', ' ')}
+                          </span>
+
+                          {/* Arrow */}
+                          <svg className="w-5 h-5 text-navy-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                          </svg>
+                        </Link>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-clinical-200 dark:border-navy-700 bg-clinical-50 dark:bg-navy-800/50 rounded-b-2xl flex-shrink-0">
+              <button
+                onClick={() => openNewAppointmentModal(dayViewDate)}
+                className="btn-primary w-full flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Add Appointment
+              </button>
+            </div>
           </div>
         </div>
       )}

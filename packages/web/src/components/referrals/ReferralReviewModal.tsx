@@ -9,17 +9,69 @@ interface ReferralReviewModalProps {
 
 type Mode = 'review' | 'create-patient' | 'search-patient';
 
+// Convert various date formats to YYYY-MM-DD for the date input
+function normalizeDate(dateStr: string | null): string {
+  if (!dateStr) return '';
+
+  // Already in YYYY-MM-DD format
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return dateStr;
+  }
+
+  // DD/MM/YYYY format (common in UK/Australia)
+  const ddmmyyyy = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (ddmmyyyy) {
+    const [, day, month, year] = ddmmyyyy;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+
+  // MM/DD/YYYY format (US)
+  const mmddyyyy = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (mmddyyyy) {
+    const [, first, second, year] = mmddyyyy;
+    // If first > 12, it's definitely DD/MM/YYYY
+    if (parseInt(first) > 12) {
+      return `${year}-${second.padStart(2, '0')}-${first.padStart(2, '0')}`;
+    }
+    // If second > 12, it's definitely MM/DD/YYYY
+    if (parseInt(second) > 12) {
+      return `${year}-${first.padStart(2, '0')}-${second.padStart(2, '0')}`;
+    }
+    // Ambiguous - assume DD/MM/YYYY (user preference)
+    return `${year}-${second.padStart(2, '0')}-${first.padStart(2, '0')}`;
+  }
+
+  // DD-MM-YYYY format
+  const ddmmyyyyDash = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (ddmmyyyyDash) {
+    const [, day, month, year] = ddmmyyyyDash;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+
+  // Try parsing as a date string
+  try {
+    const date = new Date(dateStr);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0];
+    }
+  } catch {
+    // Ignore parsing errors
+  }
+
+  return '';
+}
+
 export function ReferralReviewModal({ referral, onClose, onResolved }: ReferralReviewModalProps) {
   const [mode, setMode] = useState<Mode>('review');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Patient form state
+  // Patient form state - normalize date format
   const [patientForm, setPatientForm] = useState<CreatePatientInput>({
     mrn: '', // Will be generated
     firstName: referral.patientFirstName || '',
     lastName: referral.patientLastName || '',
-    dateOfBirth: referral.patientDob || '',
+    dateOfBirth: normalizeDate(referral.patientDob),
     phone: referral.patientPhone || '',
   });
 

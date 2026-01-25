@@ -12,6 +12,26 @@ export function ReferralReviewList({ refreshTrigger, onResolved }: ReferralRevie
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedReferral, setSelectedReferral] = useState<PendingReferral | null>(null);
+  const [dismissingId, setDismissingId] = useState<string | null>(null);
+
+  const handleDismiss = async (e: React.MouseEvent, referralId: string) => {
+    e.stopPropagation(); // Prevent opening the modal
+
+    if (!confirm('Are you sure you want to dismiss this referral?')) {
+      return;
+    }
+
+    setDismissingId(referralId);
+    const { error: apiError } = await api.skipReferral(referralId);
+
+    if (apiError) {
+      alert(`Failed to dismiss referral: ${apiError}`);
+    } else {
+      fetchReferrals();
+      onResolved();
+    }
+    setDismissingId(null);
+  };
 
   const fetchReferrals = async () => {
     const { data, error: apiError } = await api.getPendingReferrals();
@@ -176,31 +196,47 @@ export function ReferralReviewList({ refreshTrigger, onResolved }: ReferralRevie
                   )}
                 </div>
 
-                {/* Match status */}
-                <div className="flex-shrink-0 text-right">
-                  {referral.matchedPatientId ? (
-                    <div className="space-y-1">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getConfidenceColor(
-                          referral.matchConfidence
-                        )} bg-gray-100 dark:bg-gray-700`}
-                      >
-                        <UserCheckIcon className="w-3 h-3" />
-                        {getConfidenceLabel(referral.matchConfidence)}
+                {/* Match status and actions */}
+                <div className="flex-shrink-0 flex items-start gap-2">
+                  <div className="text-right">
+                    {referral.matchedPatientId ? (
+                      <div className="space-y-1">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getConfidenceColor(
+                            referral.matchConfidence
+                          )} bg-gray-100 dark:bg-gray-700`}
+                        >
+                          <UserCheckIcon className="w-3 h-3" />
+                          {getConfidenceLabel(referral.matchConfidence)}
+                        </span>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {referral.matchedPatientFirstName} {referral.matchedPatientLastName}
+                        </p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">
+                          MRN: {referral.matchedPatientMrn}
+                        </p>
+                      </div>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
+                        <UserPlusIcon className="w-3 h-3" />
+                        New Patient
                       </span>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {referral.matchedPatientFirstName} {referral.matchedPatientLastName}
-                      </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500">
-                        MRN: {referral.matchedPatientMrn}
-                      </p>
-                    </div>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
-                      <UserPlusIcon className="w-3 h-3" />
-                      New Patient
-                    </span>
-                  )}
+                    )}
+                  </div>
+
+                  {/* Dismiss button */}
+                  <button
+                    onClick={(e) => handleDismiss(e, referral.id)}
+                    disabled={dismissingId === referral.id}
+                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
+                    title="Dismiss referral"
+                  >
+                    {dismissingId === referral.id ? (
+                      <SpinnerIcon className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <XIcon className="w-4 h-4" />
+                    )}
+                  </button>
                 </div>
               </div>
             </div>
@@ -263,6 +299,27 @@ function UserPlusIcon({ className }: { className?: string }) {
         strokeLinecap="round"
         strokeLinejoin="round"
         d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+      />
+    </svg>
+  );
+}
+
+function XIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  );
+}
+
+function SpinnerIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
       />
     </svg>
   );

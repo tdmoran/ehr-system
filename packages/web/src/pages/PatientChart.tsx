@@ -444,8 +444,8 @@ export default function PatientChart() {
                 <p className="font-display font-medium text-navy-900 mt-1">{patient.phone || '—'}</p>
               </div>
               <div className="p-3 bg-clinical-50 rounded-lg">
-                <p className="text-xs text-navy-500 font-body uppercase tracking-wide">Insurance</p>
-                <p className="font-display font-medium text-navy-900 mt-1">{patient.insuranceProvider || '—'}</p>
+                <p className="text-xs text-navy-500 font-body uppercase tracking-wide">Email</p>
+                <p className="font-display font-medium text-navy-900 mt-1">{patient.email || '—'}</p>
               </div>
               <div className="p-3 bg-coral-50 rounded-lg border border-coral-100">
                 <p className="text-xs text-coral-600 font-body uppercase tracking-wide">Allergies</p>

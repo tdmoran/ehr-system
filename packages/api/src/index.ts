@@ -35,8 +35,14 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/health', async (req, res) => {
+  try {
+    const { pool } = await import('./db/index.js');
+    const result = await pool.query('SELECT 1 as test');
+    res.json({ status: 'ok', db: 'connected', timestamp: new Date().toISOString() });
+  } catch (err: any) {
+    res.json({ status: 'ok', db: 'error', dbError: err?.message, timestamp: new Date().toISOString() });
+  }
 });
 
 app.use('/api', routes);

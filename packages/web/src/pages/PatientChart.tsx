@@ -45,6 +45,15 @@ export default function PatientChart() {
   const [showExtractedFields, setShowExtractedFields] = useState(false);
   const [ocrResults, setOcrResults] = useState<Record<string, OcrResult>>({});
 
+  // Booking modal state
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [bookingType, setBookingType] = useState<'clinic' | 'operation'>('clinic');
+  const [bookingDate, setBookingDate] = useState('');
+  const [bookingTime, setBookingTime] = useState('09:00');
+  const [bookingNotes, setBookingNotes] = useState('');
+  const [bookingSubmitting, setBookingSubmitting] = useState(false);
+  const [bookingError, setBookingError] = useState('');
+
   const fetchEncounters = () => {
     if (id) {
       api.getPatientEncounters(id).then(({ data }) => {
@@ -179,6 +188,54 @@ export default function PatientChart() {
     setEncounterForm(initialEncounterForm);
     setFormError('');
     setShowNewEncounter(true);
+  };
+
+  // Booking modal handlers
+  const openBookingModal = (type: 'clinic' | 'operation') => {
+    setBookingType(type);
+    setBookingDate('');
+    setBookingTime('09:00');
+    setBookingNotes('');
+    setBookingError('');
+    setShowBookingModal(true);
+  };
+
+  const handleBookingSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!bookingDate || !bookingTime || !id) {
+      setBookingError('Please select a date and time');
+      return;
+    }
+
+    setBookingSubmitting(true);
+    setBookingError('');
+
+    // Calculate end time (30 min for clinic, 60 min for operation)
+    const durationMinutes = bookingType === 'operation' ? 60 : 30;
+    const [hours, minutes] = bookingTime.split(':').map(Number);
+    const endDate = new Date(2000, 0, 1, hours, minutes + durationMinutes);
+    const endTime = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
+
+    const appointmentType = bookingType === 'operation' ? 'Procedure' : 'Follow-up';
+
+    const { error } = await api.createAppointment({
+      patientId: id,
+      providerId: 'a0000000-0000-0000-0000-000000000002', // Default provider - TODO: make selectable
+      appointmentDate: bookingDate,
+      startTime: bookingTime,
+      endTime: endTime,
+      appointmentType: appointmentType,
+      notes: bookingNotes || undefined,
+    });
+
+    if (error) {
+      setBookingError(error);
+      setBookingSubmitting(false);
+      return;
+    }
+
+    setShowBookingModal(false);
+    setBookingSubmitting(false);
   };
 
   const handleCloseEncounterModal = () => {
@@ -357,9 +414,20 @@ export default function PatientChart() {
                   <span>DOB: {new Date(patient.dateOfBirth).toLocaleDateString()}</span>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button onClick={handleOpenEditPatient} className="btn-secondary">Edit Patient</button>
-                <button onClick={handleOpenEncounterModal} className="btn-primary">New Encounter</button>
+                <button
+                  onClick={() => openBookingModal('clinic')}
+                  className="btn-primary bg-teal-600 hover:bg-teal-700"
+                >
+                  Book Clinic Appt
+                </button>
+                <button
+                  onClick={() => openBookingModal('operation')}
+                  className="btn-primary bg-coral-600 hover:bg-coral-700"
+                >
+                  Book Operation
+                </button>
               </div>
             </div>
 
@@ -984,6 +1052,136 @@ export default function PatientChart() {
           }}
           onFieldsApplied={handleFieldsApplied}
         />
+      )}
+
+      {/* Booking Modal */}
+      {showBookingModal && (
+        <div className="fixed inset-0 bg-navy-900/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-navy-900 rounded-2xl shadow-clinical-xl max-w-md w-full animate-slide-up">
+            <div className="flex items-center justify-between p-6 border-b border-clinical-200 dark:border-navy-700">
+              <div>
+                <h2 className="font-display text-xl font-bold text-navy-900 dark:text-navy-100">
+                  {bookingType === 'operation' ? 'Book Operation' : 'Book Clinic Appointment'}
+                </h2>
+                <p className="text-navy-500 dark:text-navy-400 font-body text-sm mt-1">
+                  {patient?.firstName} {patient?.lastName}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowBookingModal(false)}
+                className="w-8 h-8 rounded-lg hover:bg-navy-50 dark:hover:bg-navy-800 flex items-center justify-center"
+              >
+                <svg className="w-5 h-5 text-navy-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleBookingSubmit}>
+              <div className="p-6 space-y-4">
+                {bookingError && (
+                  <div className="p-3 bg-coral-50 dark:bg-coral-900/20 border border-coral-200 dark:border-coral-800 rounded-lg">
+                    <p className="text-coral-700 dark:text-coral-400 text-sm font-body">{bookingError}</p>
+                  </div>
+                )}
+
+                {/* Appointment Type Badge */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-navy-500 dark:text-navy-400">Type:</span>
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    bookingType === 'operation'
+                      ? 'bg-coral-100 dark:bg-coral-900/30 text-coral-700 dark:text-coral-400'
+                      : 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400'
+                  }`}>
+                    {bookingType === 'operation' ? 'Procedure / Operation' : 'Clinic Follow-up'}
+                  </span>
+                </div>
+
+                {/* Date */}
+                <div>
+                  <label className="block text-sm font-medium text-navy-700 dark:text-navy-300 font-body mb-1">
+                    Date <span className="text-coral-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={bookingDate}
+                    onChange={(e) => setBookingDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="input-clinical"
+                    required
+                  />
+                </div>
+
+                {/* Time */}
+                <div>
+                  <label className="block text-sm font-medium text-navy-700 dark:text-navy-300 font-body mb-1">
+                    Time <span className="text-coral-500">*</span>
+                  </label>
+                  <input
+                    type="time"
+                    value={bookingTime}
+                    onChange={(e) => setBookingTime(e.target.value)}
+                    className="input-clinical"
+                    required
+                  />
+                  <p className="text-xs text-navy-400 mt-1">
+                    Duration: {bookingType === 'operation' ? '60 minutes' : '30 minutes'}
+                  </p>
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="block text-sm font-medium text-navy-700 dark:text-navy-300 font-body mb-1">
+                    Notes
+                  </label>
+                  <textarea
+                    value={bookingNotes}
+                    onChange={(e) => setBookingNotes(e.target.value)}
+                    placeholder={bookingType === 'operation' ? 'e.g., Procedure details, pre-op requirements...' : 'e.g., Reason for follow-up...'}
+                    rows={3}
+                    className="input-clinical resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex gap-3 justify-end p-6 border-t border-clinical-200 dark:border-navy-700 bg-clinical-50 dark:bg-navy-800/50 rounded-b-2xl">
+                <button
+                  type="button"
+                  onClick={() => setShowBookingModal(false)}
+                  className="btn-secondary"
+                  disabled={bookingSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={`btn-primary flex items-center gap-2 ${
+                    bookingType === 'operation' ? 'bg-coral-600 hover:bg-coral-700' : ''
+                  }`}
+                  disabled={bookingSubmitting}
+                >
+                  {bookingSubmitting ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Booking...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      {bookingType === 'operation' ? 'Book Operation' : 'Book Appointment'}
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* Edit Patient Modal */}

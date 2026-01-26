@@ -352,35 +352,34 @@ export default function Calendar() {
                   ${index % 7 === 6 ? 'border-r-0' : ''}
                 `}
               >
-                {date && (
-                  <>
-                    <div className={`text-sm font-medium mb-1 ${
-                      isCurrentDay
-                        ? 'w-7 h-7 rounded-full bg-teal-600 text-white flex items-center justify-center'
-                        : 'text-navy-700 dark:text-navy-300'
-                    }`}>
-                      {date.getDate()}
-                    </div>
-                    <div className="space-y-1">
-                      {dayAppointments.slice(0, 3).map(apt => (
-                        <div
-                          key={apt.id}
-                          onClick={(e) => handleAppointmentClick(e, apt)}
-                          className="text-xs p-1 rounded truncate text-white font-medium cursor-pointer hover:opacity-80"
-                          style={{ backgroundColor: getAppointmentColor(apt.appointmentType) }}
-                          title={`${apt.startTime.substring(0, 5)} - ${apt.patientFirstName} ${apt.patientLastName}`}
-                        >
-                          {apt.startTime.substring(0, 5)} {apt.patientFirstName} {apt.patientLastName}
-                        </div>
-                      ))}
-                      {dayAppointments.length > 3 && (
-                        <div className="text-xs text-navy-500 dark:text-navy-400 font-medium">
-                          +{dayAppointments.length - 3} more
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
+                {date && (() => {
+                  const clinicCount = dayAppointments.filter(apt => apt.appointmentType !== 'Procedure').length;
+                  const operationsCount = dayAppointments.filter(apt => apt.appointmentType === 'Procedure').length;
+
+                  return (
+                    <>
+                      <div className={`text-sm font-medium mb-2 ${
+                        isCurrentDay
+                          ? 'w-7 h-7 rounded-full bg-teal-600 text-white flex items-center justify-center'
+                          : 'text-navy-700 dark:text-navy-300'
+                      }`}>
+                        {date.getDate()}
+                      </div>
+                      <div className="space-y-1">
+                        {clinicCount > 0 && (
+                          <div className="text-xs px-2 py-1 rounded bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 font-medium">
+                            {clinicCount} Clinic
+                          </div>
+                        )}
+                        {operationsCount > 0 && (
+                          <div className="text-xs px-2 py-1 rounded bg-coral-100 dark:bg-coral-900/30 text-coral-700 dark:text-coral-400 font-medium">
+                            {operationsCount} Op{operationsCount !== 1 ? 's' : ''}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             );
           })}

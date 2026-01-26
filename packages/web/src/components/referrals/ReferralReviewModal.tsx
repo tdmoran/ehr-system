@@ -130,7 +130,7 @@ export function ReferralReviewModal({ referral, onClose, onResolved }: ReferralR
       return;
     }
 
-    const { error: apiError, data } = await api.createPatientFromReferral(referral.id, patientForm);
+    const { error: apiError } = await api.createPatientFromReferral(referral.id, patientForm);
 
     if (apiError) {
       // Try to parse validation details if available

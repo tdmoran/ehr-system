@@ -1,5 +1,5 @@
 import pg from 'pg';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 const connectionString = process.env.DATABASE_URL || 'postgresql://ehr:ehr@localhost:5432/ehr';
 const isCloudDB = connectionString.includes('neon.tech') || connectionString.includes('supabase');

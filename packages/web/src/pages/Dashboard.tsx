@@ -252,8 +252,8 @@ export default function Dashboard() {
                         </button>
                       </>
                     )}
-                    {/* Complete button - show after patient has been seen (in_progress) */}
-                    {apt.status === 'in_progress' && (
+                    {/* Complete button - show for checked_in or in_progress patients */}
+                    {(apt.status === 'checked_in' || apt.status === 'in_progress') && (
                       <button
                         onClick={() => handleStatusUpdate(apt.id, 'completed')}
                         className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg transition-colors"

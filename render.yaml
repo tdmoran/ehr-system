@@ -12,4 +12,6 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ORIGIN
-        value: https://www.sxrooms.com
+        value: https://www.sxrooms.net
+      - key: DATABASE_URL
+        sync: false  # Set this manually in Render dashboard for security

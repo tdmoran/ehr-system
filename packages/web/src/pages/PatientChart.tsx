@@ -47,7 +47,7 @@ export default function PatientChart() {
 
   // Booking modal state
   const [showBookingModal, setShowBookingModal] = useState(false);
-  const [bookingType, setBookingType] = useState<'clinic' | 'operation'>('clinic');
+  const [bookingType, setBookingType] = useState<'clinic' | 'operation' | 'scan'>('clinic');
   const [bookingDate, setBookingDate] = useState('');
   const [bookingTime, setBookingTime] = useState('09:00');
   const [bookingNotes, setBookingNotes] = useState('');
@@ -191,7 +191,7 @@ export default function PatientChart() {
   };
 
   // Booking modal handlers
-  const openBookingModal = (type: 'clinic' | 'operation') => {
+  const openBookingModal = (type: 'clinic' | 'operation' | 'scan') => {
     setBookingType(type);
     setBookingDate('');
     setBookingTime('09:00');
@@ -210,13 +210,13 @@ export default function PatientChart() {
     setBookingSubmitting(true);
     setBookingError('');
 
-    // Calculate end time (30 min for clinic, 60 min for operation)
+    // Calculate end time (30 min for clinic/scan, 60 min for operation)
     const durationMinutes = bookingType === 'operation' ? 60 : 30;
     const [hours, minutes] = bookingTime.split(':').map(Number);
     const endDate = new Date(2000, 0, 1, hours, minutes + durationMinutes);
     const endTime = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
 
-    const appointmentType = bookingType === 'operation' ? 'Procedure' : 'Follow-up';
+    const appointmentType = bookingType === 'operation' ? 'Procedure' : bookingType === 'scan' ? 'Scan' : 'Follow-up';
 
     const { error } = await api.createAppointment({
       patientId: id,
@@ -414,19 +414,25 @@ export default function PatientChart() {
                   <span>DOB: {new Date(patient.dateOfBirth).toLocaleDateString()}</span>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <button onClick={handleOpenEditPatient} className="btn-secondary">Edit Patient</button>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={handleOpenEditPatient} className="btn-secondary text-sm">Edit Patient</button>
                 <button
                   onClick={() => openBookingModal('clinic')}
-                  className="btn-primary bg-teal-600 hover:bg-teal-700"
+                  className="btn-primary bg-teal-600 hover:bg-teal-700 text-sm"
                 >
                   Book Clinic Appt
                 </button>
                 <button
                   onClick={() => openBookingModal('operation')}
-                  className="btn-primary bg-coral-600 hover:bg-coral-700"
+                  className="btn-primary bg-coral-600 hover:bg-coral-700 text-sm"
                 >
                   Book Operation
+                </button>
+                <button
+                  onClick={() => openBookingModal('scan')}
+                  className="btn-primary bg-purple-600 hover:bg-purple-700 text-sm"
+                >
+                  Book Scan
                 </button>
               </div>
             </div>
@@ -446,7 +452,7 @@ export default function PatientChart() {
                 <p className="font-display font-medium text-coral-700 mt-1">Penicillin, Shellfish</p>
               </div>
               <div className="p-3 bg-clinical-50 rounded-lg">
-                <p className="text-xs text-navy-500 font-body uppercase tracking-wide">Primary Care</p>
+                <p className="text-xs text-navy-500 font-body uppercase tracking-wide">Patient's GP</p>
                 <p className="font-display font-medium text-navy-900 mt-1">Dr. Smith</p>
               </div>
             </div>
@@ -1061,7 +1067,7 @@ export default function PatientChart() {
             <div className="flex items-center justify-between p-6 border-b border-clinical-200 dark:border-navy-700">
               <div>
                 <h2 className="font-display text-xl font-bold text-navy-900 dark:text-navy-100">
-                  {bookingType === 'operation' ? 'Book Operation' : 'Book Clinic Appointment'}
+                  {bookingType === 'operation' ? 'Book Operation' : bookingType === 'scan' ? 'Book Scan' : 'Book Clinic Appointment'}
                 </h2>
                 <p className="text-navy-500 dark:text-navy-400 font-body text-sm mt-1">
                   {patient?.firstName} {patient?.lastName}
@@ -1091,9 +1097,11 @@ export default function PatientChart() {
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                     bookingType === 'operation'
                       ? 'bg-coral-100 dark:bg-coral-900/30 text-coral-700 dark:text-coral-400'
+                      : bookingType === 'scan'
+                      ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
                       : 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400'
                   }`}>
-                    {bookingType === 'operation' ? 'Procedure / Operation' : 'Clinic Follow-up'}
+                    {bookingType === 'operation' ? 'Procedure / Operation' : bookingType === 'scan' ? 'CT / MRI / Ultrasound' : 'Clinic Follow-up'}
                   </span>
                 </div>
 
@@ -1137,7 +1145,7 @@ export default function PatientChart() {
                   <textarea
                     value={bookingNotes}
                     onChange={(e) => setBookingNotes(e.target.value)}
-                    placeholder={bookingType === 'operation' ? 'e.g., Procedure details, pre-op requirements...' : 'e.g., Reason for follow-up...'}
+                    placeholder={bookingType === 'operation' ? 'e.g., Procedure details, pre-op requirements...' : bookingType === 'scan' ? 'e.g., CT chest with contrast, MRI brain...' : 'e.g., Reason for follow-up...'}
                     rows={3}
                     className="input-clinical resize-none"
                   />
@@ -1157,7 +1165,8 @@ export default function PatientChart() {
                 <button
                   type="submit"
                   className={`btn-primary flex items-center gap-2 ${
-                    bookingType === 'operation' ? 'bg-coral-600 hover:bg-coral-700' : ''
+                    bookingType === 'operation' ? 'bg-coral-600 hover:bg-coral-700' :
+                    bookingType === 'scan' ? 'bg-purple-600 hover:bg-purple-700' : ''
                   }`}
                   disabled={bookingSubmitting}
                 >
@@ -1174,7 +1183,7 @@ export default function PatientChart() {
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
-                      {bookingType === 'operation' ? 'Book Operation' : 'Book Appointment'}
+                      {bookingType === 'operation' ? 'Book Operation' : bookingType === 'scan' ? 'Book Scan' : 'Book Appointment'}
                     </>
                   )}
                 </button>

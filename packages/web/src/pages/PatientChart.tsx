@@ -437,8 +437,15 @@ export default function PatientChart() {
               </div>
             </div>
 
+            {/* Memo Task Button */}
+            <div className="mt-4">
+              <button className="px-3 py-1.5 text-xs font-medium bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg transition-colors">
+                Memo Task
+              </button>
+            </div>
+
             {/* Quick Info Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
               <div className="p-3 bg-clinical-50 rounded-lg">
                 <p className="text-xs text-navy-500 font-body uppercase tracking-wide">Phone</p>
                 <p className="font-display font-medium text-navy-900 mt-1">{patient.phone || '—'}</p>

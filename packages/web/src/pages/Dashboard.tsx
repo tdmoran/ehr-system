@@ -219,17 +219,19 @@ export default function Dashboard() {
                           Checked In ✕
                         </button>
                       )}
-                      {apt.status === 'completed' && (
-                        <span className="badge bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
-                          Completed
-                        </span>
-                      )}
                     </div>
                     <p className="text-sm text-navy-500 dark:text-navy-400 font-body">
                       {apt.appointmentType}
                       {apt.reason && ` · ${apt.reason}`}
                     </p>
                   </div>
+
+                  {/* Completed badge - outside dimmed section */}
+                  {apt.status === 'completed' && (
+                    <span className="badge bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+                      Completed
+                    </span>
+                  )}
 
                   {/* Actions */}
                   <div className={`flex items-center gap-2 ${isPast ? 'opacity-40' : ''}`}>

@@ -201,9 +201,18 @@ export default function Dashboard() {
                   {/* Appointment Info */}
                   <div className={`flex-1 min-w-0 ${isPast ? 'opacity-40' : ''}`}>
                     <div className="flex items-center gap-2">
+                      {apt.appointmentType === 'New Patient' && !isPast && (
+                        <span className="px-1.5 py-0.5 text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded">
+                          NEW
+                        </span>
+                      )}
                       <Link
                         to={`/patients/${apt.patientId}`}
-                        className={`font-display font-semibold hover:underline ${isPast ? 'text-navy-400 dark:text-navy-500' : 'text-teal-600 dark:text-teal-400'}`}
+                        className={`font-display font-semibold hover:underline ${
+                          isPast ? 'text-navy-400 dark:text-navy-500' :
+                          apt.appointmentType === 'New Patient' ? 'text-purple-600 dark:text-purple-400' :
+                          'text-teal-600 dark:text-teal-400'
+                        }`}
                       >
                         {apt.patientFirstName} {apt.patientLastName}
                       </Link>

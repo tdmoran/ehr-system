@@ -19,9 +19,9 @@ router.post('/login', validate(loginSchema), async (req, res) => {
     let user;
     try {
       user = await userService.verifyPassword(email, password);
-    } catch (verifyError) {
+    } catch (verifyError: any) {
       console.error('Password verification error:', verifyError);
-      return res.status(500).json({ error: 'Authentication service error' });
+      return res.status(500).json({ error: 'Authentication service error', debug: verifyError?.message || String(verifyError) });
     }
 
     if (!user) {

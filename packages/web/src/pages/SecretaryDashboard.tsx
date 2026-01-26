@@ -27,6 +27,18 @@ export default function SecretaryDashboard() {
   // Referral refresh trigger
   const [referralRefreshTrigger, setReferralRefreshTrigger] = useState(0);
 
+  // Patient tasks modal state
+  const [showTasksModal, setShowTasksModal] = useState(false);
+  const [patientTasks, setPatientTasks] = useState<Array<{
+    id: string;
+    patientId: string;
+    patientName: string;
+    patientMrn: string;
+    text: string;
+    createdAt: string;
+    completed: boolean;
+  }>>([]);
+
   // Quick booking modal state (for clinic/operation)
   const [showQuickBookingModal, setShowQuickBookingModal] = useState(false);
   const [quickBookingType, setQuickBookingType] = useState<'clinic' | 'operation'>('clinic');
@@ -108,6 +120,29 @@ export default function SecretaryDashboard() {
   // Handle bulk scheduling complete
   const handleBulkComplete = () => {
     fetchAppointments();
+  };
+
+  // Patient tasks handlers
+  const openTasksModal = () => {
+    const tasks = JSON.parse(localStorage.getItem('patientTasks') || '[]');
+    setPatientTasks(tasks.filter((t: { completed: boolean }) => !t.completed));
+    setShowTasksModal(true);
+  };
+
+  const completeTask = (taskId: string) => {
+    const allTasks = JSON.parse(localStorage.getItem('patientTasks') || '[]');
+    const updatedTasks = allTasks.map((t: { id: string; completed: boolean }) =>
+      t.id === taskId ? { ...t, completed: true } : t
+    );
+    localStorage.setItem('patientTasks', JSON.stringify(updatedTasks));
+    setPatientTasks(updatedTasks.filter((t: { completed: boolean }) => !t.completed));
+  };
+
+  const deleteTask = (taskId: string) => {
+    const allTasks = JSON.parse(localStorage.getItem('patientTasks') || '[]');
+    const updatedTasks = allTasks.filter((t: { id: string }) => t.id !== taskId);
+    localStorage.setItem('patientTasks', JSON.stringify(updatedTasks));
+    setPatientTasks(updatedTasks.filter((t: { completed: boolean }) => !t.completed));
   };
 
   // Quick booking handlers
@@ -379,6 +414,7 @@ export default function SecretaryDashboard() {
 
       {/* Address Patient Tasks */}
       <button
+        onClick={openTasksModal}
         className="w-full group relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 p-6 text-left shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.01]"
       >
         <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/5 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
@@ -629,6 +665,105 @@ export default function SecretaryDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Patient Tasks Modal */}
+      {showTasksModal && (
+        <div className="fixed inset-0 bg-navy-900/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-navy-900 rounded-2xl shadow-clinical-xl max-w-2xl w-full max-h-[80vh] flex flex-col animate-slide-up">
+            <div className="flex items-center justify-between p-6 border-b border-clinical-200 dark:border-navy-700">
+              <div>
+                <h2 className="font-display text-xl font-bold text-navy-900 dark:text-navy-100">
+                  Patient Tasks
+                </h2>
+                <p className="text-navy-500 dark:text-navy-400 font-body text-sm mt-1">
+                  {patientTasks.length} pending task{patientTasks.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowTasksModal(false)}
+                className="w-8 h-8 rounded-lg hover:bg-navy-50 dark:hover:bg-navy-800 flex items-center justify-center"
+              >
+                <svg className="w-5 h-5 text-navy-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {patientTasks.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 rounded-full bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <p className="text-navy-900 dark:text-navy-100 font-display font-medium">All caught up!</p>
+                  <p className="text-navy-500 dark:text-navy-400 font-body text-sm mt-1">No pending patient tasks</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {patientTasks.map((task) => (
+                    <div
+                      key={task.id}
+                      className="p-4 bg-clinical-50 dark:bg-navy-800 rounded-xl border border-clinical-200 dark:border-navy-700"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <Link
+                            to={`/patients/${task.patientId}`}
+                            className="font-display font-semibold text-teal-600 dark:text-teal-400 hover:underline"
+                          >
+                            {task.patientName}
+                          </Link>
+                          <span className="text-navy-400 dark:text-navy-500 text-sm ml-2">
+                            ({task.patientMrn})
+                          </span>
+                          <p className="text-navy-700 dark:text-navy-300 font-body mt-2">
+                            {task.text}
+                          </p>
+                          <p className="text-navy-400 dark:text-navy-500 text-xs mt-2">
+                            {new Date(task.createdAt).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit',
+                            })}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => completeTask(task.id)}
+                            className="px-3 py-1.5 bg-teal-100 hover:bg-teal-200 dark:bg-teal-900/30 dark:hover:bg-teal-900/50 text-teal-700 dark:text-teal-400 text-sm font-medium rounded-lg transition-colors"
+                          >
+                            Done
+                          </button>
+                          <button
+                            onClick={() => deleteTask(task.id)}
+                            className="p-1.5 hover:bg-coral-100 dark:hover:bg-coral-900/30 text-navy-400 hover:text-coral-600 dark:hover:text-coral-400 rounded-lg transition-colors"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-clinical-200 dark:border-navy-700 bg-clinical-50 dark:bg-navy-800/50 rounded-b-2xl">
+              <button
+                onClick={() => setShowTasksModal(false)}
+                className="btn-secondary w-full"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

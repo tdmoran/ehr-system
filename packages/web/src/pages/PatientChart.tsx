@@ -54,6 +54,11 @@ export default function PatientChart() {
   const [bookingSubmitting, setBookingSubmitting] = useState(false);
   const [bookingError, setBookingError] = useState('');
 
+  // Memo task modal state
+  const [showMemoModal, setShowMemoModal] = useState(false);
+  const [memoText, setMemoText] = useState('');
+  const [memoSubmitting, setMemoSubmitting] = useState(false);
+
   const fetchEncounters = () => {
     if (id) {
       api.getPatientEncounters(id).then(({ data }) => {
@@ -236,6 +241,35 @@ export default function PatientChart() {
 
     setShowBookingModal(false);
     setBookingSubmitting(false);
+  };
+
+  // Handle memo task submission
+  const handleMemoSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!memoText.trim() || !patient) return;
+
+    setMemoSubmitting(true);
+
+    // Get existing tasks from localStorage
+    const existingTasks = JSON.parse(localStorage.getItem('patientTasks') || '[]');
+
+    // Add new task
+    const newTask = {
+      id: Date.now().toString(),
+      patientId: patient.id,
+      patientName: `${patient.firstName} ${patient.lastName}`,
+      patientMrn: patient.mrn,
+      text: memoText.trim(),
+      createdAt: new Date().toISOString(),
+      completed: false,
+    };
+
+    existingTasks.push(newTask);
+    localStorage.setItem('patientTasks', JSON.stringify(existingTasks));
+
+    setMemoText('');
+    setShowMemoModal(false);
+    setMemoSubmitting(false);
   };
 
   const handleCloseEncounterModal = () => {
@@ -439,7 +473,10 @@ export default function PatientChart() {
 
             {/* Memo Task Button */}
             <div className="mt-4">
-              <button className="px-6 py-3 text-sm font-medium bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg transition-colors">
+              <button
+                onClick={() => setShowMemoModal(true)}
+                className="px-6 py-3 text-sm font-medium bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg transition-colors"
+              >
                 Memo Task
               </button>
             </div>
@@ -1437,6 +1474,76 @@ export default function PatientChart() {
                     </>
                   ) : (
                     'Save Changes'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Memo Task Modal */}
+      {showMemoModal && (
+        <div className="fixed inset-0 bg-navy-900/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-navy-900 rounded-2xl shadow-clinical-xl max-w-md w-full animate-slide-up">
+            <div className="flex items-center justify-between p-6 border-b border-clinical-200 dark:border-navy-700">
+              <div>
+                <h2 className="font-display text-xl font-bold text-navy-900 dark:text-navy-100">
+                  Memo Task
+                </h2>
+                <p className="text-navy-500 dark:text-navy-400 font-body text-sm mt-1">
+                  {patient?.firstName} {patient?.lastName}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowMemoModal(false)}
+                className="w-8 h-8 rounded-lg hover:bg-navy-50 dark:hover:bg-navy-800 flex items-center justify-center"
+              >
+                <svg className="w-5 h-5 text-navy-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleMemoSubmit}>
+              <div className="p-6">
+                <label className="block text-sm font-medium text-navy-700 dark:text-navy-300 font-body mb-2">
+                  Task Description
+                </label>
+                <textarea
+                  value={memoText}
+                  onChange={(e) => setMemoText(e.target.value)}
+                  placeholder="Enter task details for secretary to action..."
+                  rows={4}
+                  className="input-clinical resize-none"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-3 justify-end p-6 border-t border-clinical-200 dark:border-navy-700 bg-clinical-50 dark:bg-navy-800/50 rounded-b-2xl">
+                <button
+                  type="button"
+                  onClick={() => setShowMemoModal(false)}
+                  className="btn-secondary"
+                  disabled={memoSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary bg-amber-600 hover:bg-amber-700 flex items-center gap-2"
+                  disabled={memoSubmitting || !memoText.trim()}
+                >
+                  {memoSubmitting ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Saving...
+                    </>
+                  ) : (
+                    'Send to Secretary'
                   )}
                 </button>
               </div>

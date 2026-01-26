@@ -245,6 +245,60 @@ export const api = {
     }),
 
   getReferralFileUrl: (id: string) => `${API_URL}/api/referrals/${id}/download`,
+
+  // Calendar Events
+  getCalendarEvents: (startDate: string, endDate: string, providerId?: string) =>
+    request<{ events: CalendarEvent[] }>(
+      `/calendar/events?startDate=${startDate}&endDate=${endDate}${providerId ? `&providerId=${providerId}` : ''}`
+    ),
+
+  createCalendarEvent: (event: CreateCalendarEventInput) =>
+    request<{ event: CalendarEvent }>('/calendar/events', {
+      method: 'POST',
+      body: JSON.stringify(event),
+    }),
+
+  deleteCalendarEvent: (id: string) =>
+    request<{ success: boolean }>(`/calendar/events/${id}`, { method: 'DELETE' }),
+
+  // On-Call Periods
+  getOnCallPeriods: (startDate: string, endDate: string, providerId?: string) =>
+    request<{ onCallPeriods: OnCallPeriod[] }>(
+      `/calendar/oncall?startDate=${startDate}&endDate=${endDate}${providerId ? `&providerId=${providerId}` : ''}`
+    ),
+
+  createOnCallPeriod: (period: CreateOnCallPeriodInput) =>
+    request<{ onCallPeriod: OnCallPeriod }>('/calendar/oncall', {
+      method: 'POST',
+      body: JSON.stringify(period),
+    }),
+
+  deleteOnCallPeriod: (id: string) =>
+    request<{ success: boolean }>(`/calendar/oncall/${id}`, { method: 'DELETE' }),
+
+  // Patient Tasks
+  getTasks: (completed?: boolean) =>
+    request<{ tasks: PatientTask[] }>(
+      `/tasks${completed !== undefined ? `?completed=${completed}` : ''}`
+    ),
+
+  getPatientTasks: (patientId: string) =>
+    request<{ tasks: PatientTask[] }>(`/tasks/patient/${patientId}`),
+
+  createTask: (task: CreateTaskInput) =>
+    request<{ task: PatientTask }>('/tasks', {
+      method: 'POST',
+      body: JSON.stringify(task),
+    }),
+
+  updateTask: (id: string, completed: boolean) =>
+    request<{ task: { id: string; completed: boolean; completed_at: string | null } }>(`/tasks/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ completed }),
+    }),
+
+  deleteTask: (id: string) =>
+    request<{ success: boolean }>(`/tasks/${id}`, { method: 'DELETE' }),
 };
 
 // Types
@@ -272,6 +326,7 @@ export interface Patient {
   zip: string | null;
   insuranceProvider: string | null;
   notes: string | null;
+  clinicNotes: string | null;
   active: boolean;
 }
 
@@ -290,6 +345,7 @@ export interface CreatePatientInput {
   insuranceProvider?: string;
   insuranceId?: string;
   notes?: string;
+  clinicNotes?: string;
 }
 
 export interface Encounter {
@@ -454,4 +510,52 @@ export interface ReferralDetail {
     fileSize: number | null;
     processingStatus: string;
   };
+}
+
+// Calendar Types
+export interface CalendarEvent {
+  id: string;
+  providerId: string;
+  date: string;
+  title: string;
+  notes: string | null;
+  createdAt: string;
+}
+
+export interface CreateCalendarEventInput {
+  eventDate: string;
+  title: string;
+  notes?: string;
+}
+
+export interface OnCallPeriod {
+  id: string;
+  providerId: string;
+  startDate: string;
+  endDate: string;
+  notes: string | null;
+  createdAt: string;
+}
+
+export interface CreateOnCallPeriodInput {
+  startDate: string;
+  endDate: string;
+  notes?: string;
+}
+
+// Task Types
+export interface PatientTask {
+  id: string;
+  patientId: string;
+  patientName: string;
+  patientMrn: string;
+  text: string;
+  completed: boolean;
+  completedAt: string | null;
+  createdAt: string;
+}
+
+export interface CreateTaskInput {
+  patientId: string;
+  taskText: string;
 }

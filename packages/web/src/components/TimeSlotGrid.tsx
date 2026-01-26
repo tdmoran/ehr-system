@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { Appointment, AppointmentType } from '../api/client';
 
 interface TimeSlotGridProps {
@@ -158,9 +159,13 @@ export default function TimeSlotGrid({
                             className="w-2 h-2 rounded-full flex-shrink-0"
                             style={{ backgroundColor: getAppointmentColor(appointment.appointmentType) }}
                           />
-                          <span className="font-medium text-navy-900 dark:text-navy-100 truncate">
+                          <Link
+                            to={`/patients/${appointment.patientId}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="font-medium text-teal-600 dark:text-teal-400 hover:underline truncate"
+                          >
                             {appointment.patientFirstName} {appointment.patientLastName}
-                          </span>
+                          </Link>
                         </div>
                         <p className="text-xs text-navy-500 dark:text-navy-400 mt-0.5">
                           {appointment.patientMrn} | {appointment.appointmentType}

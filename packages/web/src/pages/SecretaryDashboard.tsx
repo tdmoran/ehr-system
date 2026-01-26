@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { api, Appointment, AppointmentType, Patient } from '../api/client';
+import { api, Appointment, AppointmentType, Patient, PatientTask } from '../api/client';
 import QuickActions from '../components/QuickActions';
 import { useAuth } from '../context/AuthContext';
 import TimeSlotGrid from '../components/TimeSlotGrid';
@@ -29,18 +29,13 @@ export default function SecretaryDashboard() {
 
   // Patient tasks modal state
   const [showTasksModal, setShowTasksModal] = useState(false);
-  const [patientTasks, setPatientTasks] = useState<Array<{
-    id: string;
-    patientId: string;
-    patientName: string;
-    patientMrn: string;
-    text: string;
-    createdAt: string;
-    completed: boolean;
-  }>>([]);
+  const [patientTasks, setPatientTasks] = useState<PatientTask[]>([]);
 
   // Quick booking modal state (for clinic/operation)
   const [showQuickBookingModal, setShowQuickBookingModal] = useState(false);
+
+  // Ref for scrolling to schedule section
+  const scheduleTabRef = useRef<HTMLDivElement>(null);
   const [quickBookingType, setQuickBookingType] = useState<'clinic' | 'operation'>('clinic');
   const [quickBookingPatient, setQuickBookingPatient] = useState('');
   const [quickBookingDate, setQuickBookingDate] = useState('');
@@ -123,26 +118,28 @@ export default function SecretaryDashboard() {
   };
 
   // Patient tasks handlers
-  const openTasksModal = () => {
-    const tasks = JSON.parse(localStorage.getItem('patientTasks') || '[]');
-    setPatientTasks(tasks.filter((t: { completed: boolean }) => !t.completed));
+  const openTasksModal = async () => {
+    const { data } = await api.getTasks(false);
+    if (data) {
+      setPatientTasks(data.tasks);
+    }
     setShowTasksModal(true);
   };
 
-  const completeTask = (taskId: string) => {
-    const allTasks = JSON.parse(localStorage.getItem('patientTasks') || '[]');
-    const updatedTasks = allTasks.map((t: { id: string; completed: boolean }) =>
-      t.id === taskId ? { ...t, completed: true } : t
-    );
-    localStorage.setItem('patientTasks', JSON.stringify(updatedTasks));
-    setPatientTasks(updatedTasks.filter((t: { completed: boolean }) => !t.completed));
+  const completeTask = async (taskId: string) => {
+    await api.updateTask(taskId, true);
+    const { data } = await api.getTasks(false);
+    if (data) {
+      setPatientTasks(data.tasks);
+    }
   };
 
-  const deleteTask = (taskId: string) => {
-    const allTasks = JSON.parse(localStorage.getItem('patientTasks') || '[]');
-    const updatedTasks = allTasks.filter((t: { id: string }) => t.id !== taskId);
-    localStorage.setItem('patientTasks', JSON.stringify(updatedTasks));
-    setPatientTasks(updatedTasks.filter((t: { completed: boolean }) => !t.completed));
+  const deleteTask = async (taskId: string) => {
+    await api.deleteTask(taskId);
+    const { data } = await api.getTasks(false);
+    if (data) {
+      setPatientTasks(data.tasks);
+    }
   };
 
   // Quick booking handlers
@@ -329,7 +326,12 @@ export default function SecretaryDashboard() {
             {appointments.length > 5 && (
               <div className="px-4 py-2 text-center">
                 <button
-                  onClick={() => setActiveTab('schedule')}
+                  onClick={() => {
+                    setActiveTab('schedule');
+                    setTimeout(() => {
+                      scheduleTabRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 100);
+                  }}
                   className="text-sm text-teal-600 dark:text-teal-400 hover:underline font-body"
                 >
                   View all {appointments.length} appointments →
@@ -465,7 +467,7 @@ export default function SecretaryDashboard() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-clinical-200 dark:border-navy-700">
+      <div ref={scheduleTabRef} className="flex gap-2 border-b border-clinical-200 dark:border-navy-700">
         <TabButton active={activeTab === 'schedule'} onClick={() => setActiveTab('schedule')}>
           <CalendarIcon className="w-4 h-4" />
           Schedule

@@ -6,6 +6,8 @@ import documentRoutes from './documents.js';
 import appointmentRoutes from './appointments.js';
 import ocrRoutes from './ocr.js';
 import referralRoutes from './referrals.js';
+import calendarRoutes from './calendar.js';
+import taskRoutes from './tasks.js';
 
 const router = Router();
 
@@ -16,5 +18,7 @@ router.use('/documents', documentRoutes);
 router.use('/appointments', appointmentRoutes);
 router.use('/ocr', ocrRoutes);
 router.use('/referrals', referralRoutes);
+router.use('/calendar', calendarRoutes);
+router.use('/tasks', taskRoutes);
 
 export default router;

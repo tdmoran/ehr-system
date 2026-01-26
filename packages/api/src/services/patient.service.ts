@@ -19,6 +19,7 @@ export interface Patient {
   insuranceProvider: string | null;
   insuranceId: string | null;
   notes: string | null;
+  clinicNotes: string | null;
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -64,6 +65,7 @@ function mapRow(row: Record<string, unknown>): Patient {
     insuranceProvider: row.insurance_provider as string | null,
     insuranceId: row.insurance_id as string | null,
     notes: row.notes as string | null,
+    clinicNotes: row.clinic_notes as string | null,
     active: row.active as boolean,
     createdAt: row.created_at as Date,
     updatedAt: row.updated_at as Date,
@@ -158,6 +160,7 @@ export async function update(id: string, input: Partial<CreatePatientInput>): Pr
     insuranceProvider: 'insurance_provider',
     insuranceId: 'insurance_id',
     notes: 'notes',
+    clinicNotes: 'clinic_notes',
   };
 
   for (const [key, dbField] of Object.entries(fieldMap)) {

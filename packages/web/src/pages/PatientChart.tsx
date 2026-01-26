@@ -109,15 +109,12 @@ export default function PatientChart() {
     }
   }, [patient]);
 
-  // Load clinic notes from localStorage
+  // Load clinic notes from patient data
   useEffect(() => {
-    if (id) {
-      const saved = localStorage.getItem(`clinicNotes_${id}`);
-      if (saved) {
-        setClinicNotes(saved);
-      }
+    if (patient) {
+      setClinicNotes(patient.clinicNotes || '');
     }
-  }, [id]);
+  }, [patient]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>, category: 'scanned_document' | 'letter' | 'operative_note' = 'scanned_document') => {
     const file = e.target.files?.[0];
@@ -260,31 +257,22 @@ export default function PatientChart() {
   };
 
   // Handle memo task submission
-  const handleMemoSubmit = (e: FormEvent) => {
+  const handleMemoSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!memoText.trim() || !patient) return;
 
     setMemoSubmitting(true);
 
-    // Get existing tasks from localStorage
-    const existingTasks = JSON.parse(localStorage.getItem('patientTasks') || '[]');
-
-    // Add new task
-    const newTask = {
-      id: Date.now().toString(),
+    // Create task via API
+    const { error } = await api.createTask({
       patientId: patient.id,
-      patientName: `${patient.firstName} ${patient.lastName}`,
-      patientMrn: patient.mrn,
-      text: memoText.trim(),
-      createdAt: new Date().toISOString(),
-      completed: false,
-    };
+      taskText: memoText.trim(),
+    });
 
-    existingTasks.push(newTask);
-    localStorage.setItem('patientTasks', JSON.stringify(existingTasks));
-
-    setMemoText('');
-    setShowMemoModal(false);
+    if (!error) {
+      setMemoText('');
+      setShowMemoModal(false);
+    }
     setMemoSubmitting(false);
   };
 
@@ -608,12 +596,14 @@ export default function PatientChart() {
                   </span>
                 )}
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     setClinicNotesSaving(true);
-                    localStorage.setItem(`clinicNotes_${id}`, clinicNotes);
+                    const { error } = await api.updatePatient(id!, { clinicNotes });
                     setClinicNotesSaving(false);
-                    setClinicNotesSaved(true);
-                    setTimeout(() => setClinicNotesSaved(false), 2000);
+                    if (!error) {
+                      setClinicNotesSaved(true);
+                      setTimeout(() => setClinicNotesSaved(false), 2000);
+                    }
                   }}
                   disabled={clinicNotesSaving}
                   className="btn-primary text-sm py-2 flex items-center gap-2"

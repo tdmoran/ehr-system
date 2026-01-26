@@ -26,6 +26,8 @@ const createPatientSchema = z.object({
   emergencyContactPhone: z.string().max(20).optional(),
   insuranceProvider: z.string().max(200).optional(),
   insuranceId: z.string().max(100).optional(),
+  notes: z.string().optional(),
+  clinicNotes: z.string().optional(),
 });
 
 router.get('/', async (req, res) => {

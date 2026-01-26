@@ -252,13 +252,6 @@ export default function SecretaryDashboard() {
         </div>
       </div>
 
-      {/* Address Patient Tasks Button */}
-      <div>
-        <button className="px-6 py-3 text-sm font-medium bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg transition-colors">
-          Address Patient Tasks
-        </button>
-      </div>
-
       {/* Upcoming Appointments Preview */}
       <div className="card-clinical overflow-hidden">
         <div className="px-4 py-3 bg-clinical-50 dark:bg-navy-800 border-b border-clinical-200 dark:border-navy-700 flex items-center justify-between">
@@ -383,6 +376,13 @@ export default function SecretaryDashboard() {
           </div>
         </div>
       </button>
+
+      {/* Address Patient Tasks Button */}
+      <div>
+        <button className="px-6 py-3 text-sm font-medium bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg transition-colors">
+          Address Patient Tasks
+        </button>
+      </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

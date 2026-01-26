@@ -2,6 +2,7 @@ import { useState, FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { usePatients } from '../hooks/usePatients';
 import { api, CreatePatientInput } from '../api/client';
+import QuickActions from '../components/QuickActions';
 
 const initialFormData: CreatePatientInput = {
   mrn: '',
@@ -231,6 +232,9 @@ export default function Patients() {
           </div>
         )}
       </div>
+
+      {/* Quick Actions */}
+      <QuickActions />
 
       {/* New Patient Modal */}
       {showNewPatient && (

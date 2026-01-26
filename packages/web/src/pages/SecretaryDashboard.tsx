@@ -1,14 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { api, Appointment, AppointmentType, Patient } from '../api/client';
+import QuickActions from '../components/QuickActions';
 import { useAuth } from '../context/AuthContext';
 import TimeSlotGrid from '../components/TimeSlotGrid';
 import QuickBooking from '../components/QuickBooking';
-import WaitingRoom from '../components/WaitingRoom';
 import BulkScheduler from '../components/BulkScheduler';
 import { ReferralScanner } from '../components/referrals/ReferralScanner';
 import { ReferralReviewList } from '../components/referrals/ReferralReviewList';
 
-type TabType = 'schedule' | 'waiting' | 'bulk' | 'referrals';
+type TabType = 'schedule' | 'bulk' | 'referrals';
 
 export default function SecretaryDashboard() {
   const { user } = useAuth();
@@ -25,6 +26,16 @@ export default function SecretaryDashboard() {
 
   // Referral refresh trigger
   const [referralRefreshTrigger, setReferralRefreshTrigger] = useState(0);
+
+  // Quick booking modal state (for clinic/operation)
+  const [showQuickBookingModal, setShowQuickBookingModal] = useState(false);
+  const [quickBookingType, setQuickBookingType] = useState<'clinic' | 'operation'>('clinic');
+  const [quickBookingPatient, setQuickBookingPatient] = useState('');
+  const [quickBookingDate, setQuickBookingDate] = useState('');
+  const [quickBookingTime, setQuickBookingTime] = useState('09:00');
+  const [quickBookingNotes, setQuickBookingNotes] = useState('');
+  const [quickBookingSubmitting, setQuickBookingSubmitting] = useState(false);
+  const [quickBookingError, setQuickBookingError] = useState('');
 
   // The secretary's assigned provider ID
   const providerId = user?.providerId;
@@ -94,16 +105,57 @@ export default function SecretaryDashboard() {
     fetchAppointments();
   };
 
-  // Handle status update from waiting room
-  const handleStatusUpdate = async (appointmentId: string, status: string) => {
-    const { error } = await api.updateAppointment(appointmentId, { status });
-    if (!error) {
-      fetchAppointments();
-    }
-  };
-
   // Handle bulk scheduling complete
   const handleBulkComplete = () => {
+    fetchAppointments();
+  };
+
+  // Quick booking handlers
+  const openQuickBooking = (type: 'clinic' | 'operation') => {
+    setQuickBookingType(type);
+    setQuickBookingPatient('');
+    setQuickBookingDate(selectedDate);
+    setQuickBookingTime('09:00');
+    setQuickBookingNotes('');
+    setQuickBookingError('');
+    setShowQuickBookingModal(true);
+  };
+
+  const handleQuickBookingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickBookingPatient || !quickBookingDate || !quickBookingTime || !providerId) {
+      setQuickBookingError('Please select a patient, date, and time');
+      return;
+    }
+
+    setQuickBookingSubmitting(true);
+    setQuickBookingError('');
+
+    const durationMinutes = quickBookingType === 'operation' ? 60 : 30;
+    const [hours, minutes] = quickBookingTime.split(':').map(Number);
+    const endDate = new Date(2000, 0, 1, hours, minutes + durationMinutes);
+    const endTime = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
+
+    const appointmentType = quickBookingType === 'operation' ? 'Procedure' : 'Follow-up';
+
+    const { error } = await api.createAppointment({
+      patientId: quickBookingPatient,
+      providerId: providerId,
+      appointmentDate: quickBookingDate,
+      startTime: quickBookingTime,
+      endTime: endTime,
+      appointmentType: appointmentType,
+      notes: quickBookingNotes || undefined,
+    });
+
+    if (error) {
+      setQuickBookingError(error);
+      setQuickBookingSubmitting(false);
+      return;
+    }
+
+    setShowQuickBookingModal(false);
+    setQuickBookingSubmitting(false);
     fetchAppointments();
   };
 
@@ -224,9 +276,12 @@ export default function SecretaryDashboard() {
                   </p>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-display font-medium text-navy-900 dark:text-navy-100 truncate">
+                  <Link
+                    to={`/patients/${apt.patientId}`}
+                    className="font-display font-medium text-teal-600 dark:text-teal-400 hover:underline truncate block"
+                  >
                     {apt.patientFirstName} {apt.patientLastName}
-                  </p>
+                  </Link>
                   <p className="text-xs text-navy-500 dark:text-navy-400 font-body">
                     {apt.patientMrn} • {apt.appointmentType}
                   </p>
@@ -248,6 +303,49 @@ export default function SecretaryDashboard() {
             )}
           </div>
         )}
+      </div>
+
+      {/* Quick Actions - Book Appointments */}
+      <div className="grid grid-cols-2 gap-4">
+        <button
+          onClick={() => openQuickBooking('clinic')}
+          className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-teal-500 via-teal-600 to-emerald-600 p-6 text-left shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.01]"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/5 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+          <div className="relative flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
+              <CalendarIcon className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white font-display">
+                Book Clinic Appointment
+              </h3>
+              <p className="text-teal-100 text-sm mt-1 font-body">
+                Schedule a follow-up visit
+              </p>
+            </div>
+          </div>
+        </button>
+
+        <button
+          onClick={() => openQuickBooking('operation')}
+          className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-coral-500 via-coral-600 to-red-600 p-6 text-left shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.01]"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/5 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+          <div className="relative flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
+              <ProcedureIcon className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white font-display">
+                Book Operation
+              </h3>
+              <p className="text-coral-100 text-sm mt-1 font-body">
+                Schedule a procedure
+              </p>
+            </div>
+          </div>
+        </button>
       </div>
 
       {/* Quick Action - Process Referrals */}
@@ -308,15 +406,6 @@ export default function SecretaryDashboard() {
           <CalendarIcon className="w-4 h-4" />
           Schedule
         </TabButton>
-        <TabButton active={activeTab === 'waiting'} onClick={() => setActiveTab('waiting')}>
-          <UsersIcon className="w-4 h-4" />
-          Waiting Room
-          {stats.waiting > 0 && (
-            <span className="ml-2 px-2 py-0.5 bg-amber-500 text-white text-xs font-medium rounded-full">
-              {stats.waiting}
-            </span>
-          )}
-        </TabButton>
         <TabButton active={activeTab === 'bulk'} onClick={() => setActiveTab('bulk')}>
           <UploadIcon className="w-4 h-4" />
           Bulk Import
@@ -335,13 +424,6 @@ export default function SecretaryDashboard() {
           appointmentTypes={appointmentTypes}
           onSlotClick={handleSlotClick}
           onAppointmentClick={handleAppointmentClick}
-        />
-      )}
-
-      {activeTab === 'waiting' && (
-        <WaitingRoom
-          appointments={appointments}
-          onStatusUpdate={handleStatusUpdate}
         />
       )}
 
@@ -385,6 +467,142 @@ export default function SecretaryDashboard() {
           onClose={() => setShowBookingModal(false)}
           onComplete={handleBookingComplete}
         />
+      )}
+
+      {/* Quick Actions */}
+      <QuickActions />
+
+      {/* Quick Booking Modal for Clinic/Operation */}
+      {showQuickBookingModal && (
+        <div className="fixed inset-0 bg-navy-900/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-navy-900 rounded-2xl shadow-clinical-xl max-w-md w-full animate-slide-up">
+            <div className="flex items-center justify-between p-6 border-b border-clinical-200 dark:border-navy-700">
+              <div>
+                <h2 className="font-display text-xl font-bold text-navy-900 dark:text-navy-100">
+                  {quickBookingType === 'operation' ? 'Book Operation' : 'Book Clinic Appointment'}
+                </h2>
+                <p className="text-navy-500 dark:text-navy-400 font-body text-sm mt-1">
+                  {quickBookingType === 'operation' ? '60 minute procedure' : '30 minute follow-up'}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowQuickBookingModal(false)}
+                className="w-8 h-8 rounded-lg hover:bg-navy-50 dark:hover:bg-navy-800 flex items-center justify-center"
+              >
+                <svg className="w-5 h-5 text-navy-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleQuickBookingSubmit}>
+              <div className="p-6 space-y-4">
+                {quickBookingError && (
+                  <div className="p-3 bg-coral-50 dark:bg-coral-900/20 border border-coral-200 dark:border-coral-800 rounded-lg">
+                    <p className="text-coral-700 dark:text-coral-400 text-sm font-body">{quickBookingError}</p>
+                  </div>
+                )}
+
+                {/* Patient Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-navy-700 dark:text-navy-300 font-body mb-1">
+                    Patient <span className="text-coral-500">*</span>
+                  </label>
+                  <select
+                    value={quickBookingPatient}
+                    onChange={(e) => setQuickBookingPatient(e.target.value)}
+                    className="input-clinical"
+                    required
+                  >
+                    <option value="">Select patient...</option>
+                    {patients.map((patient) => (
+                      <option key={patient.id} value={patient.id}>
+                        {patient.firstName} {patient.lastName} ({patient.mrn})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Date */}
+                <div>
+                  <label className="block text-sm font-medium text-navy-700 dark:text-navy-300 font-body mb-1">
+                    Date <span className="text-coral-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={quickBookingDate}
+                    onChange={(e) => setQuickBookingDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="input-clinical"
+                    required
+                  />
+                </div>
+
+                {/* Time */}
+                <div>
+                  <label className="block text-sm font-medium text-navy-700 dark:text-navy-300 font-body mb-1">
+                    Time <span className="text-coral-500">*</span>
+                  </label>
+                  <input
+                    type="time"
+                    value={quickBookingTime}
+                    onChange={(e) => setQuickBookingTime(e.target.value)}
+                    className="input-clinical"
+                    required
+                  />
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="block text-sm font-medium text-navy-700 dark:text-navy-300 font-body mb-1">
+                    Notes
+                  </label>
+                  <textarea
+                    value={quickBookingNotes}
+                    onChange={(e) => setQuickBookingNotes(e.target.value)}
+                    placeholder={quickBookingType === 'operation' ? 'Procedure details...' : 'Reason for visit...'}
+                    rows={3}
+                    className="input-clinical resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex gap-3 justify-end p-6 border-t border-clinical-200 dark:border-navy-700 bg-clinical-50 dark:bg-navy-800/50 rounded-b-2xl">
+                <button
+                  type="button"
+                  onClick={() => setShowQuickBookingModal(false)}
+                  className="btn-secondary"
+                  disabled={quickBookingSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={`btn-primary flex items-center gap-2 ${
+                    quickBookingType === 'operation' ? 'bg-coral-600 hover:bg-coral-700' : ''
+                  }`}
+                  disabled={quickBookingSubmitting}
+                >
+                  {quickBookingSubmitting ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Booking...
+                    </>
+                  ) : (
+                    <>
+                      <CalendarIcon className="w-4 h-4" />
+                      {quickBookingType === 'operation' ? 'Book Operation' : 'Book Appointment'}
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -473,14 +691,6 @@ function CalendarIcon({ className }: { className?: string }) {
   );
 }
 
-function UsersIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-    </svg>
-  );
-}
-
 function UploadIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -493,6 +703,14 @@ function DocumentScanIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v16.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9zm3.75 11.625a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+    </svg>
+  );
+}
+
+function ProcedureIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
     </svg>
   );
 }

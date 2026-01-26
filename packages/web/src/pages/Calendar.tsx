@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api, Appointment, AppointmentType, Patient, CreateAppointmentInput } from '../api/client';
+import QuickActions from '../components/QuickActions';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = [
@@ -145,25 +146,6 @@ export default function Calendar() {
     });
     setFormError('');
     setShowDayView(false);
-    setShowModal(true);
-  };
-
-  // Handle appointment click
-  const handleAppointmentClick = (e: React.MouseEvent, appointment: Appointment) => {
-    e.stopPropagation();
-    setSelectedAppointment(appointment);
-    setSelectedDate(new Date(appointment.appointmentDate));
-    setFormData({
-      patientId: appointment.patientId,
-      providerId: appointment.providerId,
-      appointmentDate: appointment.appointmentDate.split('T')[0],
-      startTime: appointment.startTime.substring(0, 5),
-      endTime: appointment.endTime.substring(0, 5),
-      appointmentType: appointment.appointmentType,
-      reason: appointment.reason || '',
-      notes: appointment.notes || '',
-    });
-    setFormError('');
     setShowModal(true);
   };
 
@@ -398,6 +380,9 @@ export default function Calendar() {
           </div>
         ))}
       </div>
+
+      {/* Quick Actions */}
+      <QuickActions />
 
       {/* Appointment Modal */}
       {showModal && (

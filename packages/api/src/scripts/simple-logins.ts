@@ -1,9 +1,12 @@
 import pg from 'pg';
 import bcrypt from 'bcrypt';
 
+const connectionString = process.env.DATABASE_URL || 'postgresql://ehr:ehr@localhost:5432/ehr';
+const isCloudDB = connectionString.includes('neon.tech') || connectionString.includes('supabase');
+
 const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_N8uWQfalCY0o@ep-winter-block-ahidrsiy-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require',
-  ssl: { rejectUnauthorized: false }
+  connectionString,
+  ssl: isCloudDB ? { rejectUnauthorized: false } : false
 });
 
 async function main() {

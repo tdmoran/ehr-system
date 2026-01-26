@@ -4,7 +4,7 @@ import { randomUUID } from 'crypto';
 const { Pool } = pg;
 
 // Get connection string from environment or use default
-const connectionString = process.env.DATABASE_URL || 'postgresql://localhost:5432/ehr';
+const connectionString = process.env.DATABASE_URL || 'postgresql://ehr:ehr@localhost:5432/ehr';
 
 const isCloudDB = connectionString.includes('supabase.co') ||
                   connectionString.includes('supabase.com') ||

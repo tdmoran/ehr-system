@@ -56,11 +56,13 @@ export default function Layout({ children }: LayoutProps) {
     { path: '/calendar', label: 'Calendar', icon: CalendarIcon },
   ];
 
-  // Add Schedule link for secretaries
+  // Add Schedule link for secretaries (after Dashboard)
   const navItems = user?.role === 'secretary'
     ? [
+        { path: '/', label: 'Dashboard', icon: DashboardIcon },
         { path: '/schedule', label: 'Schedule', icon: ScheduleIcon },
-        ...baseNavItems,
+        { path: '/patients', label: 'Patients', icon: PatientsIcon },
+        { path: '/calendar', label: 'Calendar', icon: CalendarIcon },
       ]
     : baseNavItems;
 
@@ -222,7 +224,8 @@ export default function Layout({ children }: LayoutProps) {
           <div className="p-4 md:p-6 lg:p-8">{children}</div>
         </main>
 
-        {/* Right Sidebar - Resources, Videos, News & Ads */}
+        {/* Right Sidebar - Resources, Videos, News & Ads (hidden for secretaries) */}
+        {user?.role !== 'secretary' && (
         <aside className="hidden lg:block w-80 xl:w-96 border-l border-clinical-200 dark:border-navy-700 bg-white dark:bg-navy-900">
           <div className="sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto p-4 space-y-6">
             {/* RCSI Training Videos */}
@@ -363,6 +366,7 @@ export default function Layout({ children }: LayoutProps) {
             </div>
           </div>
         </aside>
+        )}
       </div>
     </div>
   );

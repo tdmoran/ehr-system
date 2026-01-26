@@ -103,11 +103,10 @@ export default function Dashboard() {
     localStorage.setItem('onCallSettings', JSON.stringify(onCallSettings));
   }, [onCallSettings]);
 
-  // Time-based greeting
+  // Day-based greeting
   const getGreeting = () => {
-    if (currentHour < 12) return 'Good morning';
-    if (currentHour < 17) return 'Good afternoon';
-    return 'Good evening';
+    const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long' });
+    return `Happy ${dayOfWeek}`;
   };
 
   // Get week dates (today through end of week + next week start)
@@ -135,7 +134,9 @@ export default function Dashboard() {
       weekEnd.setDate(weekEnd.getDate() + 7);
       const weekEndStr = weekEnd.toISOString().split('T')[0];
 
-      const { data } = await api.getAppointments(today, weekEndStr);
+      // For secretaries, use their linked providerId; for providers, use their own id
+      const providerId = user?.role === 'secretary' ? user?.providerId : user?.id;
+      const { data } = await api.getAppointments(today, weekEndStr, providerId);
       if (data) {
         // Sort all appointments by date and time
         const sorted = data.appointments.sort((a, b) => {
@@ -144,23 +145,26 @@ export default function Dashboard() {
           return a.startTime.localeCompare(b.startTime);
         });
 
-        // Separate today's appointments
-        const todayApts = sorted.filter(apt => apt.appointmentDate === today);
+        // Separate today's appointments (compare date portion only)
+        const todayApts = sorted.filter(apt => apt.appointmentDate.split('T')[0] === today);
         setTodayAppointments(todayApts);
 
         // Group remaining by date for the week view
         const weekMap = new Map<string, Appointment[]>();
-        sorted.filter(apt => apt.appointmentDate !== today).forEach(apt => {
-          const existing = weekMap.get(apt.appointmentDate) || [];
+        sorted.filter(apt => apt.appointmentDate.split('T')[0] !== today).forEach(apt => {
+          const dateKey = apt.appointmentDate.split('T')[0];
+          const existing = weekMap.get(dateKey) || [];
           existing.push(apt);
-          weekMap.set(apt.appointmentDate, existing);
+          weekMap.set(dateKey, existing);
         });
         setWeekAppointments(weekMap);
       }
       setLoading(false);
     };
-    fetchData();
-  }, []);
+    if (user) {
+      fetchData();
+    }
+  }, [user]);
 
   // Get next upcoming appointment
   const getNextAppointment = () => {
@@ -454,59 +458,57 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* Work/Personal/Merge Toggle */}
-      <div className="flex justify-center">
-        <div className="inline-flex rounded-xl bg-clinical-100 dark:bg-navy-800 p-1">
-          <button
-            onClick={() => setViewMode('work')}
-            className={`px-4 md:px-6 py-2.5 rounded-lg font-body font-medium text-sm transition-all ${
-              viewMode === 'work'
-                ? 'bg-white dark:bg-navy-700 text-navy-900 dark:text-navy-100 shadow-sm'
-                : 'text-navy-500 dark:text-navy-400 hover:text-navy-700 dark:hover:text-navy-300'
-            }`}
-          >
-            <span className="flex items-center gap-2">
-              <BriefcaseIcon className="w-4 h-4" />
-              Work
+      {/* Today's Appointments Preview - for secretaries */}
+      {user?.role === 'secretary' && todayAppointments.length > 0 && (
+        <div className="card-clinical overflow-hidden">
+          <div className="px-4 py-3 bg-clinical-50 dark:bg-navy-800 border-b border-clinical-200 dark:border-navy-700 flex items-center justify-between">
+            <h2 className="font-display font-semibold text-navy-900 dark:text-navy-100 text-sm">
+              Today's Appointments
+            </h2>
+            <span className="text-xs text-navy-500 dark:text-navy-400 font-body">
+              {todayAppointments.length} scheduled
             </span>
-          </button>
-          <button
-            onClick={() => setViewMode('personal')}
-            className={`px-4 md:px-6 py-2.5 rounded-lg font-body font-medium text-sm transition-all ${
-              viewMode === 'personal'
-                ? 'bg-white dark:bg-navy-700 text-navy-900 dark:text-navy-100 shadow-sm'
-                : 'text-navy-500 dark:text-navy-400 hover:text-navy-700 dark:hover:text-navy-300'
-            }`}
-          >
-            <span className="flex items-center gap-2">
-              <HomeIcon className="w-4 h-4" />
-              Personal
-            </span>
-          </button>
-          <button
-            onClick={() => setViewMode('merge')}
-            className={`px-4 md:px-6 py-2.5 rounded-lg font-body font-medium text-sm transition-all relative ${
-              viewMode === 'merge'
-                ? 'bg-white dark:bg-navy-700 text-navy-900 dark:text-navy-100 shadow-sm'
-                : 'text-navy-500 dark:text-navy-400 hover:text-navy-700 dark:hover:text-navy-300'
-            }`}
-          >
-            <span className="flex items-center gap-2">
-              <MergeIcon className="w-4 h-4" />
-              Merge
-              {getConflictCount() > 0 && viewMode !== 'merge' && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-coral-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
-                  {getConflictCount()}
+          </div>
+          <div className="divide-y divide-clinical-100 dark:divide-navy-700">
+            {todayAppointments.slice(0, 5).map((apt) => (
+              <div key={apt.id} className="px-4 py-3 flex items-center gap-4 hover:bg-clinical-50 dark:hover:bg-navy-800/50 transition-colors">
+                <div className="text-center min-w-[60px]">
+                  <p className="font-display font-semibold text-navy-900 dark:text-navy-100 text-sm">
+                    {formatTime(apt.startTime)}
+                  </p>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-display font-medium text-navy-900 dark:text-navy-100 truncate">
+                    {apt.patientFirstName} {apt.patientLastName}
+                  </p>
+                  <p className="text-xs text-navy-500 dark:text-navy-400 font-body">
+                    {apt.patientMrn} • {apt.appointmentType}
+                  </p>
+                </div>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  apt.status === 'scheduled' ? 'bg-navy-100 dark:bg-navy-700 text-navy-600 dark:text-navy-300' :
+                  apt.status === 'confirmed' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
+                  apt.status === 'checked_in' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400' :
+                  apt.status === 'in_progress' ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400' :
+                  apt.status === 'completed' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                  'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                }`}>
+                  {apt.status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                 </span>
-              )}
-            </span>
-          </button>
+              </div>
+            ))}
+            {todayAppointments.length > 5 && (
+              <div className="px-4 py-2 text-center">
+                <span className="text-sm text-teal-600 dark:text-teal-400 font-body">
+                  +{todayAppointments.length - 5} more appointments
+                </span>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* WORK VIEW */}
-      {viewMode === 'work' && (
-        <>
       {/* Current Status Card */}
       {inProgress ? (
         <div className="card-clinical p-6 border-l-4 border-l-teal-500 bg-gradient-to-r from-teal-50 to-white dark:from-teal-900/20 dark:to-navy-900">
@@ -1096,494 +1098,9 @@ export default function Dashboard() {
           </div>
         )}
       </div>
-        </>
-      )}
-
-      {/* PERSONAL VIEW */}
-      {viewMode === 'personal' && (
-        <>
-          {/* Today's Focus */}
-          <div className="card-clinical p-6 border-l-4 border-l-purple-500 bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/20 dark:to-navy-900">
-            <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 mb-2">
-              <StarIcon className="w-4 h-4" />
-              <span className="text-sm font-medium font-body uppercase tracking-wide">Today's Focus</span>
-            </div>
-            <h2 className="font-display text-xl font-bold text-navy-900 dark:text-navy-100">
-              {incompleteTasks.length === 0
-                ? 'All caught up!'
-                : `${incompleteTasks.length} task${incompleteTasks.length !== 1 ? 's' : ''} to complete`}
-            </h2>
-            {incompleteTasks.length > 0 && (
-              <p className="text-navy-600 dark:text-navy-400 font-body mt-1">
-                {completedTasks.length} completed today
-              </p>
-            )}
-          </div>
-
-          {/* Add Task */}
-          <div className="card-clinical p-4">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                addTask();
-              }}
-              className="flex gap-3"
-            >
-              <input
-                type="text"
-                value={newTaskTitle}
-                onChange={(e) => setNewTaskTitle(e.target.value)}
-                placeholder="Add a personal task..."
-                className="input-clinical flex-1"
-              />
-              <button
-                type="submit"
-                disabled={!newTaskTitle.trim()}
-                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Add
-              </button>
-            </form>
-          </div>
-
-          {/* Tasks List */}
-          {personalTasks.length > 0 && (
-            <div className="card-clinical overflow-hidden">
-              <div className="px-6 py-4 border-b border-clinical-200 dark:border-navy-700">
-                <h2 className="font-display font-semibold text-navy-900 dark:text-navy-100">My Tasks</h2>
-              </div>
-
-              {/* Incomplete Tasks */}
-              {incompleteTasks.length > 0 && (
-                <div className="divide-y divide-clinical-100 dark:divide-navy-700">
-                  {incompleteTasks.map(task => (
-                    <div
-                      key={task.id}
-                      className="flex items-center gap-4 px-6 py-4 hover:bg-clinical-50 dark:hover:bg-navy-800/50 transition-colors"
-                    >
-                      <button
-                        onClick={() => toggleTask(task.id)}
-                        className="w-5 h-5 rounded-full border-2 border-navy-300 dark:border-navy-600 hover:border-teal-500 dark:hover:border-teal-400 transition-colors flex-shrink-0"
-                      />
-                      <span className="flex-1 font-body text-navy-900 dark:text-navy-100">
-                        {task.title}
-                      </span>
-                      <button
-                        onClick={() => deleteTask(task.id)}
-                        className="text-navy-400 hover:text-coral-500 transition-colors"
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Completed Tasks */}
-              {completedTasks.length > 0 && (
-                <>
-                  <div className="px-6 py-3 bg-clinical-50 dark:bg-navy-800/50 border-t border-clinical-200 dark:border-navy-700">
-                    <span className="text-sm font-body text-navy-500 dark:text-navy-400">
-                      Completed ({completedTasks.length})
-                    </span>
-                  </div>
-                  <div className="divide-y divide-clinical-100 dark:divide-navy-700">
-                    {completedTasks.map(task => (
-                      <div
-                        key={task.id}
-                        className="flex items-center gap-4 px-6 py-4 opacity-60"
-                      >
-                        <button
-                          onClick={() => toggleTask(task.id)}
-                          className="w-5 h-5 rounded-full border-2 border-teal-500 bg-teal-500 flex-shrink-0 flex items-center justify-center"
-                        >
-                          <CheckIcon className="w-3 h-3 text-white" />
-                        </button>
-                        <span className="flex-1 font-body text-navy-700 dark:text-navy-300 line-through">
-                          {task.title}
-                        </span>
-                        <button
-                          onClick={() => deleteTask(task.id)}
-                          className="text-navy-400 hover:text-coral-500 transition-colors"
-                        >
-                          <TrashIcon className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Empty state */}
-          {personalTasks.length === 0 && (
-            <div className="card-clinical p-8 text-center">
-              <div className="w-16 h-16 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mx-auto mb-4">
-                <CheckIcon className="w-8 h-8 text-purple-500" />
-              </div>
-              <h2 className="font-display text-xl font-semibold text-navy-900 dark:text-navy-100">
-                No tasks yet
-              </h2>
-              <p className="text-navy-500 dark:text-navy-400 font-body mt-2">
-                Add a personal task above to get started
-              </p>
-            </div>
-          )}
-
-          {/* Quick Personal Actions */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <button
-              onClick={() => {
-                setNewTaskTitle('');
-                document.querySelector<HTMLInputElement>('input[placeholder="Add a personal task..."]')?.focus();
-              }}
-              className="card-clinical p-4 flex flex-col items-center gap-3 hover:border-purple-300 dark:hover:border-purple-600 hover:bg-purple-50/50 dark:hover:bg-purple-900/20 transition-all group"
-            >
-              <div className="w-12 h-12 rounded-xl bg-navy-50 dark:bg-navy-800 group-hover:bg-purple-100 dark:group-hover:bg-purple-900/50 flex items-center justify-center transition-colors">
-                <PlusIcon className="w-6 h-6 text-navy-500 dark:text-navy-400 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors" />
-              </div>
-              <span className="font-body text-sm text-navy-700 dark:text-navy-300 text-center">New Task</span>
-            </button>
-
-            <button
-              onClick={() => setPersonalTasks(personalTasks.filter(t => !t.completed))}
-              className="card-clinical p-4 flex flex-col items-center gap-3 hover:border-purple-300 dark:hover:border-purple-600 hover:bg-purple-50/50 dark:hover:bg-purple-900/20 transition-all group"
-            >
-              <div className="w-12 h-12 rounded-xl bg-navy-50 dark:bg-navy-800 group-hover:bg-purple-100 dark:group-hover:bg-purple-900/50 flex items-center justify-center transition-colors">
-                <TrashIcon className="w-6 h-6 text-navy-500 dark:text-navy-400 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors" />
-              </div>
-              <span className="font-body text-sm text-navy-700 dark:text-navy-300 text-center">Clear Completed</span>
-            </button>
-
-            <button
-              onClick={() => setViewMode('work')}
-              className="card-clinical p-4 flex flex-col items-center gap-3 hover:border-purple-300 dark:hover:border-purple-600 hover:bg-purple-50/50 dark:hover:bg-purple-900/20 transition-all group"
-            >
-              <div className="w-12 h-12 rounded-xl bg-navy-50 dark:bg-navy-800 group-hover:bg-purple-100 dark:group-hover:bg-purple-900/50 flex items-center justify-center transition-colors">
-                <BriefcaseIcon className="w-6 h-6 text-navy-500 dark:text-navy-400 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors" />
-              </div>
-              <span className="font-body text-sm text-navy-700 dark:text-navy-300 text-center">Switch to Work</span>
-            </button>
-          </div>
-        </>
-      )}
-
-      {/* MERGE VIEW */}
-      {viewMode === 'merge' && (
-        <>
-          {/* Conflict Alert */}
-          {getConflictCount() > 0 ? (
-            <div className="card-clinical p-6 border-l-4 border-l-coral-500 bg-gradient-to-r from-coral-50 to-white dark:from-coral-900/20 dark:to-navy-900">
-              <div className="flex items-center gap-2 text-coral-600 dark:text-coral-400 mb-2">
-                <AlertIcon className="w-4 h-4" />
-                <span className="text-sm font-medium font-body uppercase tracking-wide">Schedule Conflicts</span>
-              </div>
-              <h2 className="font-display text-xl font-bold text-navy-900 dark:text-navy-100">
-                {getConflictCount()} conflict{getConflictCount() !== 1 ? 's' : ''} detected
-              </h2>
-              <p className="text-navy-600 dark:text-navy-400 font-body mt-1">
-                Review your schedule below to resolve overlapping commitments
-              </p>
-            </div>
-          ) : (
-            <div className="card-clinical p-6 border-l-4 border-l-teal-500 bg-gradient-to-r from-teal-50 to-white dark:from-teal-900/20 dark:to-navy-900">
-              <div className="flex items-center gap-2 text-teal-600 dark:text-teal-400 mb-2">
-                <CheckIcon className="w-4 h-4" />
-                <span className="text-sm font-medium font-body uppercase tracking-wide">All Clear</span>
-              </div>
-              <h2 className="font-display text-xl font-bold text-navy-900 dark:text-navy-100">
-                No conflicts found
-              </h2>
-              <p className="text-navy-600 dark:text-navy-400 font-body mt-1">
-                Your work and personal schedules are well balanced
-              </p>
-            </div>
-          )}
-
-          {/* Today's Merged Timeline */}
-          <div className="card-clinical overflow-hidden">
-            <div className="px-6 py-4 border-b border-clinical-200 dark:border-navy-700">
-              <h2 className="font-display font-semibold text-navy-900 dark:text-navy-100">Today - Combined View</h2>
-            </div>
-            {(() => {
-              const today = now.toISOString().split('T')[0];
-              const slots = getMergedTimeline(today);
-
-              if (slots.length === 0) {
-                return (
-                  <div className="p-8 text-center">
-                    <p className="text-navy-400 dark:text-navy-500 font-body">Nothing scheduled for today</p>
-                  </div>
-                );
-              }
-
-              return (
-                <div className="divide-y divide-clinical-100 dark:divide-navy-700">
-                  {slots.map((slot, index) => (
-                    <div
-                      key={`${slot.type}-${slot.id}`}
-                      className={`flex items-center gap-4 px-6 py-4 transition-colors ${
-                        slot.hasConflict
-                          ? 'bg-coral-50 dark:bg-coral-900/20 border-l-4 border-l-coral-500'
-                          : slot.type === 'work'
-                          ? 'hover:bg-clinical-50 dark:hover:bg-navy-800/50'
-                          : slot.type === 'oncall'
-                          ? 'hover:bg-amber-50 dark:hover:bg-amber-900/20'
-                          : 'hover:bg-purple-50 dark:hover:bg-purple-900/20'
-                      }`}
-                    >
-                      {/* Time */}
-                      <div className="w-20 text-right flex-shrink-0">
-                        {slot.startTime ? (
-                          <p className="font-display font-semibold text-navy-900 dark:text-navy-100">
-                            {formatTime(slot.startTime)}
-                          </p>
-                        ) : (
-                          <p className="text-navy-400 dark:text-navy-500 text-sm italic">No time</p>
-                        )}
-                      </div>
-
-                      {/* Type indicator */}
-                      <div className="flex flex-col items-center">
-                        <div className={`w-3 h-3 rounded-full ${
-                          slot.hasConflict
-                            ? 'bg-coral-500 ring-4 ring-coral-200 dark:ring-coral-800'
-                            : slot.type === 'work'
-                            ? 'bg-teal-500'
-                            : slot.type === 'oncall'
-                            ? 'bg-amber-500'
-                            : 'bg-purple-500'
-                        }`} />
-                        {index < slots.length - 1 && (
-                          <div className="w-0.5 h-12 bg-clinical-200 dark:bg-navy-700 -mb-4" />
-                        )}
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-body ${
-                            slot.type === 'work'
-                              ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300'
-                              : slot.type === 'oncall'
-                              ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'
-                              : 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300'
-                          }`}>
-                            {slot.type === 'work' ? 'Work' : slot.type === 'oncall' ? 'On Call' : 'Personal'}
-                          </span>
-                          {slot.hasConflict && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-coral-100 text-coral-700 dark:bg-coral-900/50 dark:text-coral-300 font-body font-medium">
-                              Conflict{slot.conflictsWith ? ` with ${slot.conflictsWith}` : ''}
-                            </span>
-                          )}
-                        </div>
-                        <p className="font-display font-medium text-navy-900 dark:text-navy-100 mt-1">
-                          {slot.title}
-                        </p>
-                        {slot.subtitle && (
-                          <p className="text-sm text-navy-500 dark:text-navy-400 font-body">
-                            {slot.subtitle}
-                          </p>
-                        )}
-                        {slot.startTime && slot.endTime && (
-                          <p className="text-xs text-navy-400 dark:text-navy-500 font-body mt-1">
-                            {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Action */}
-                      {slot.type === 'work' && slot.patientId && (
-                        <Link
-                          to={`/patients/${slot.patientId}`}
-                          className="text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300"
-                        >
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                          </svg>
-                        </Link>
-                      )}
-                      {slot.type === 'oncall' && (
-                        <PhoneIcon className="w-5 h-5 text-amber-500" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* Week Merged View */}
-          <div className="card-clinical overflow-hidden">
-            <div className="px-6 py-4 border-b border-clinical-200 dark:border-navy-700">
-              <h2 className="font-display font-semibold text-navy-900 dark:text-navy-100">This Week - Combined</h2>
-            </div>
-            <div className="divide-y divide-clinical-100 dark:divide-navy-700">
-              {getWeekDates().map(date => {
-                const dateStr = date.toISOString().split('T')[0];
-                const slots = getMergedTimeline(dateStr);
-                const conflictCount = slots.filter(s => s.hasConflict).length / 2;
-                const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-                const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
-                const dayNum = date.getDate();
-                const monthName = date.toLocaleDateString('en-US', { month: 'short' });
-
-                return (
-                  <div
-                    key={dateStr}
-                    className={`flex items-start gap-4 px-6 py-4 ${
-                      conflictCount > 0
-                        ? 'bg-coral-50/50 dark:bg-coral-900/10'
-                        : isWeekend
-                        ? 'bg-clinical-50/50 dark:bg-navy-800/30'
-                        : ''
-                    }`}
-                  >
-                    {/* Date */}
-                    <div className="w-16 flex-shrink-0 text-center">
-                      <p className="text-xs font-body text-navy-400 dark:text-navy-500 uppercase">{dayName}</p>
-                      <p className={`font-display text-2xl font-bold ${
-                        conflictCount > 0 ? 'text-coral-600' : 'text-navy-900 dark:text-navy-100'
-                      }`}>{dayNum}</p>
-                      <p className="text-xs font-body text-navy-400 dark:text-navy-500">{monthName}</p>
-                      {conflictCount > 0 && (
-                        <span className="inline-flex items-center justify-center mt-1 px-2 py-0.5 bg-coral-100 dark:bg-coral-900/50 text-coral-700 dark:text-coral-300 text-xs rounded-full font-body">
-                          {conflictCount} clash
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Slots */}
-                    <div className="flex-1 min-w-0">
-                      {slots.length === 0 ? (
-                        <p className="text-navy-400 dark:text-navy-500 font-body text-sm py-2 italic">
-                          {isWeekend ? 'Weekend' : 'Nothing scheduled'}
-                        </p>
-                      ) : (
-                        <div className="space-y-2">
-                          {slots.slice(0, 4).map(slot => (
-                            <div
-                              key={`${slot.type}-${slot.id}`}
-                              className={`flex items-center gap-3 py-1 ${slot.hasConflict ? 'text-coral-600 dark:text-coral-400' : ''}`}
-                            >
-                              <span className="text-sm font-body text-navy-500 dark:text-navy-400 w-16 flex-shrink-0">
-                                {slot.startTime ? formatTime(slot.startTime) : '—'}
-                              </span>
-                              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                                slot.hasConflict
-                                  ? 'bg-coral-500'
-                                  : slot.type === 'work'
-                                  ? 'bg-teal-500'
-                                  : slot.type === 'oncall'
-                                  ? 'bg-amber-500'
-                                  : 'bg-purple-500'
-                              }`} />
-                              <span className={`text-sm font-body truncate ${
-                                slot.hasConflict
-                                  ? 'text-coral-700 dark:text-coral-300 font-medium'
-                                  : 'text-navy-700 dark:text-navy-300'
-                              }`}>
-                                {slot.title}
-                              </span>
-                              <span className={`text-xs font-body px-1.5 py-0.5 rounded ${
-                                slot.type === 'work'
-                                  ? 'bg-teal-100 text-teal-600 dark:bg-teal-900/50 dark:text-teal-400'
-                                  : slot.type === 'oncall'
-                                  ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-400'
-                                  : 'bg-purple-100 text-purple-600 dark:bg-purple-900/50 dark:text-purple-400'
-                              }`}>
-                                {slot.type === 'work' ? 'W' : slot.type === 'oncall' ? 'OC' : 'P'}
-                              </span>
-                            </div>
-                          ))}
-                          {slots.length > 4 && (
-                            <p className="text-xs text-navy-500 dark:text-navy-400 font-body">
-                              +{slots.length - 4} more
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Counts */}
-                    <div className="flex-shrink-0 flex gap-2">
-                      {slots.filter(s => s.type === 'work').length > 0 && (
-                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-teal-100 dark:bg-teal-900/50 text-teal-600 dark:text-teal-400 font-display font-semibold text-xs">
-                          {slots.filter(s => s.type === 'work').length}
-                        </span>
-                      )}
-                      {slots.filter(s => s.type === 'oncall').length > 0 && (
-                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 font-display font-semibold text-xs">
-                          {slots.filter(s => s.type === 'oncall').length}
-                        </span>
-                      )}
-                      {slots.filter(s => s.type === 'personal').length > 0 && (
-                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400 font-display font-semibold text-xs">
-                          {slots.filter(s => s.type === 'personal').length}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Quick Add Personal with Time */}
-          <div className="card-clinical p-4">
-            <p className="text-sm font-body text-navy-500 dark:text-navy-400 mb-3">Quick add personal event (with time for conflict detection)</p>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                addTask();
-              }}
-              className="space-y-3"
-            >
-              <input
-                type="text"
-                value={newTaskTitle}
-                onChange={(e) => setNewTaskTitle(e.target.value)}
-                placeholder="Event title..."
-                className="input-clinical w-full"
-              />
-              <div className="grid grid-cols-3 gap-2">
-                <input
-                  type="date"
-                  value={newTaskDate}
-                  onChange={(e) => setNewTaskDate(e.target.value)}
-                  className="input-clinical"
-                />
-                <input
-                  type="time"
-                  value={newTaskTime}
-                  onChange={(e) => setNewTaskTime(e.target.value)}
-                  placeholder="Start"
-                  className="input-clinical"
-                />
-                <input
-                  type="time"
-                  value={newTaskEndTime}
-                  onChange={(e) => setNewTaskEndTime(e.target.value)}
-                  placeholder="End"
-                  className="input-clinical"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={!newTaskTitle.trim()}
-                className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Add Personal Event
-              </button>
-            </form>
-          </div>
-        </>
-      )}
     </div>
   );
 }
-
 function ClockIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

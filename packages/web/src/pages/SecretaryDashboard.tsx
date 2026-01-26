@@ -153,16 +153,19 @@ export default function SecretaryDashboard() {
     year: 'numeric',
   });
 
+  const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+  const loginTime = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-bold text-navy-900 dark:text-navy-100">
-            Reception Desk
+            Happy {dayOfWeek}, {user?.firstName || 'Secretary'}!
           </h1>
           <p className="text-navy-500 dark:text-navy-400 font-body mt-1">
-            Managing schedule for Dr. {user?.lastName ? `${user.lastName}'s` : 'your provider'}
+            Last login: {loginTime}
           </p>
         </div>
 
@@ -195,6 +198,56 @@ export default function SecretaryDashboard() {
             </button>
           )}
         </div>
+      </div>
+
+      {/* Upcoming Appointments Preview */}
+      <div className="card-clinical overflow-hidden">
+        <div className="px-4 py-3 bg-clinical-50 dark:bg-navy-800 border-b border-clinical-200 dark:border-navy-700 flex items-center justify-between">
+          <h2 className="font-display font-semibold text-navy-900 dark:text-navy-100 text-sm">
+            Today's Appointments
+          </h2>
+          <span className="text-xs text-navy-500 dark:text-navy-400 font-body">
+            {appointments.length} scheduled
+          </span>
+        </div>
+        {appointments.length === 0 ? (
+          <div className="p-6 text-center">
+            <p className="text-navy-400 dark:text-navy-500 font-body text-sm">No appointments scheduled for today</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-clinical-100 dark:divide-navy-700">
+            {appointments.slice(0, 5).map((apt) => (
+              <div key={apt.id} className="px-4 py-3 flex items-center gap-4 hover:bg-clinical-50 dark:hover:bg-navy-800/50 transition-colors">
+                <div className="text-center min-w-[60px]">
+                  <p className="font-display font-semibold text-navy-900 dark:text-navy-100 text-sm">
+                    {formatDisplayTime(apt.startTime)}
+                  </p>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-display font-medium text-navy-900 dark:text-navy-100 truncate">
+                    {apt.patientFirstName} {apt.patientLastName}
+                  </p>
+                  <p className="text-xs text-navy-500 dark:text-navy-400 font-body">
+                    {apt.patientMrn} • {apt.appointmentType}
+                  </p>
+                </div>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusStyle(apt.status)}`}>
+                  {formatStatus(apt.status)}
+                </span>
+              </div>
+            ))}
+            {appointments.length > 5 && (
+              <div className="px-4 py-2 text-center">
+                <button
+                  onClick={() => setActiveTab('schedule')}
+                  className="text-sm text-teal-600 dark:text-teal-400 hover:underline font-body"
+                >
+                  View all {appointments.length} appointments →
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Quick Action - Process Referrals */}
@@ -354,6 +407,31 @@ function StatCard({ label, value, color }: { label: string; value: number; color
       </p>
     </div>
   );
+}
+
+function formatDisplayTime(time: string): string {
+  const [hours, minutes] = time.split(':').map(Number);
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12;
+  return `${displayHours}:${String(minutes).padStart(2, '0')} ${ampm}`;
+}
+
+function formatStatus(status: string): string {
+  return status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+}
+
+function getStatusStyle(status: string): string {
+  const styles: Record<string, string> = {
+    scheduled: 'bg-navy-100 dark:bg-navy-700 text-navy-600 dark:text-navy-300',
+    confirmed: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
+    checked_in: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
+    in_progress: 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400',
+    completed: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
+    checked_out: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400',
+    cancelled: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400',
+    no_show: 'bg-coral-100 dark:bg-coral-900/30 text-coral-700 dark:text-coral-400',
+  };
+  return styles[status] || styles.scheduled;
 }
 
 function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {

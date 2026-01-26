@@ -113,8 +113,8 @@ export default function Dashboard() {
 
       {/* Today's Patient List - with Clinic/Operation tabs */}
       {todayAppointments.length > 0 && (() => {
-        const clinicAppointments = todayAppointments.filter(apt => apt.appointmentType !== 'Procedure');
-        const operationAppointments = todayAppointments.filter(apt => apt.appointmentType === 'Procedure');
+        const clinicAppointments = todayAppointments.filter(apt => apt.appointmentType !== 'Procedure' && apt.status !== 'no_show');
+        const operationAppointments = todayAppointments.filter(apt => apt.appointmentType === 'Procedure' && apt.status !== 'no_show');
         const displayedAppointments = patientListTab === 'clinic' ? clinicAppointments : operationAppointments;
 
         return (

@@ -522,30 +522,34 @@ export default function PatientChart() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-clinical-200">
-        <nav className="flex gap-1">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-3 font-display font-medium text-sm transition-colors relative ${
-                activeTab === tab.id
-                  ? 'text-teal-600'
-                  : 'text-navy-500 hover:text-navy-700'
-              }`}
-            >
-              {tab.label}
-              {activeTab === tab.id && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-teal-500 rounded-full" />
-              )}
-            </button>
-          ))}
-        </nav>
-      </div>
+      {/* Main content grid - Tabs on left, Next Appointment on right */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Left side - Tabs and content */}
+        <div className="lg:col-span-3">
+          {/* Tabs */}
+          <div className="border-b border-clinical-200">
+            <nav className="flex gap-1">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-4 py-3 font-display font-medium text-sm transition-colors relative ${
+                    activeTab === tab.id
+                      ? 'text-teal-600'
+                      : 'text-navy-500 hover:text-navy-700'
+                  }`}
+                >
+                  {tab.label}
+                  {activeTab === tab.id && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-teal-500 rounded-full" />
+                  )}
+                </button>
+              ))}
+            </nav>
+          </div>
 
-      {/* Tab Content */}
-      <div className="animate-fade-in">
+          {/* Tab Content */}
+          <div className="animate-fade-in">
         {activeTab === 'overview' && (
           <div className="max-w-xl">
             {/* Allergies */}
@@ -619,106 +623,48 @@ export default function PatientChart() {
         )}
 
         {activeTab === 'encounters' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Encounter History - Left side */}
-            <div className="lg:col-span-2 card-clinical overflow-hidden">
-              <div className="px-6 py-4 border-b border-clinical-200 flex items-center justify-between">
-                <h3 className="font-display font-semibold text-navy-900">Encounter History</h3>
-                <button onClick={handleOpenEncounterModal} className="btn-primary text-sm py-2">New Encounter</button>
+          <div className="card-clinical overflow-hidden">
+            <div className="px-6 py-4 border-b border-clinical-200 flex items-center justify-between">
+              <h3 className="font-display font-semibold text-navy-900">Encounter History</h3>
+              <button onClick={handleOpenEncounterModal} className="btn-primary text-sm py-2">New Encounter</button>
+            </div>
+            {encounters.length === 0 ? (
+              <div className="p-12 text-center">
+                <p className="text-navy-500 font-body">No encounters recorded yet.</p>
               </div>
-              {encounters.length === 0 ? (
-                <div className="p-12 text-center">
-                  <p className="text-navy-500 font-body">No encounters recorded yet.</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-clinical-100">
-                  {encounters.map((encounter) => (
-                    <div key={encounter.id} className="p-6 hover:bg-clinical-50 transition-colors">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="flex items-center gap-3">
-                            <p className="font-display font-medium text-navy-900">
-                              {new Date(encounter.encounterDate).toLocaleDateString('en-US', {
-                                month: 'long',
-                                day: 'numeric',
-                                year: 'numeric',
-                              })}
-                            </p>
-                            <span className={`badge ${
-                              encounter.status === 'signed' ? 'badge-success' :
-                              encounter.status === 'completed' ? 'badge-neutral' :
-                              'badge-warning'
-                            }`}>
-                              {encounter.status === 'in_progress' ? 'In Progress' :
-                               encounter.status === 'completed' ? 'Completed' : 'Signed'}
-                            </span>
-                          </div>
-                          <p className="text-navy-500 font-body mt-1">{encounter.chiefComplaint || 'No chief complaint recorded'}</p>
+            ) : (
+              <div className="divide-y divide-clinical-100">
+                {encounters.map((encounter) => (
+                  <div key={encounter.id} className="p-6 hover:bg-clinical-50 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex items-center gap-3">
+                          <p className="font-display font-medium text-navy-900">
+                            {new Date(encounter.encounterDate).toLocaleDateString('en-US', {
+                              month: 'long',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })}
+                          </p>
+                          <span className={`badge ${
+                            encounter.status === 'signed' ? 'badge-success' :
+                            encounter.status === 'completed' ? 'badge-neutral' :
+                            'badge-warning'
+                          }`}>
+                            {encounter.status === 'in_progress' ? 'In Progress' :
+                             encounter.status === 'completed' ? 'Completed' : 'Signed'}
+                          </span>
                         </div>
-                        <button className="text-teal-600 hover:text-teal-700 font-medium text-sm font-body">
-                          View
-                        </button>
+                        <p className="text-navy-500 font-body mt-1">{encounter.chiefComplaint || 'No chief complaint recorded'}</p>
                       </div>
+                      <button className="text-teal-600 hover:text-teal-700 font-medium text-sm font-body">
+                        View
+                      </button>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Upcoming Appointments - Right side */}
-            <div className="card-clinical overflow-hidden">
-              <div className="px-6 py-4 border-b border-clinical-200">
-                <h3 className="font-display font-semibold text-navy-900">Next Appointment</h3>
-              </div>
-              {upcomingAppointments.length === 0 ? (
-                <div className="p-8 text-center">
-                  <div className="w-12 h-12 rounded-full bg-clinical-100 flex items-center justify-center mx-auto mb-3">
-                    <svg className="w-6 h-6 text-navy-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                    </svg>
                   </div>
-                  <p className="text-navy-500 font-body text-sm">No upcoming appointments</p>
-                  <button
-                    onClick={() => openBookingModal('clinic')}
-                    className="mt-3 text-teal-600 hover:text-teal-700 font-medium text-sm"
-                  >
-                    Book appointment
-                  </button>
-                </div>
-              ) : (
-                <div className="divide-y divide-clinical-100">
-                  {upcomingAppointments.slice(0, 3).map((apt) => (
-                    <div key={apt.id} className="p-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`w-2 h-2 rounded-full ${
-                          apt.appointmentType === 'Procedure' ? 'bg-coral-500' :
-                          apt.appointmentType === 'Scan' ? 'bg-purple-500' :
-                          'bg-teal-500'
-                        }`} />
-                        <p className="font-display font-medium text-navy-900 text-sm">
-                          {new Date(apt.appointmentDate + 'T12:00:00').toLocaleDateString('en-US', {
-                            weekday: 'short',
-                            month: 'short',
-                            day: 'numeric',
-                          })}
-                        </p>
-                      </div>
-                      <p className="text-navy-600 font-body text-sm">
-                        {apt.startTime.substring(0, 5)} · {apt.appointmentType}
-                      </p>
-                      {apt.notes && (
-                        <p className="text-navy-400 font-body text-xs mt-1 truncate">{apt.notes}</p>
-                      )}
-                    </div>
-                  ))}
-                  {upcomingAppointments.length > 3 && (
-                    <div className="p-3 text-center">
-                      <span className="text-navy-400 text-xs">+{upcomingAppointments.length - 3} more</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -1018,6 +964,109 @@ export default function PatientChart() {
           </div>
         )}
 
+        </div>
+        </div>
+
+        {/* Right side - Next Appointment */}
+        <div className="lg:col-span-1">
+          <div className="card-clinical overflow-hidden sticky top-4">
+            <div className="px-4 py-3 border-b border-clinical-200 bg-teal-50 dark:bg-teal-900/20">
+              <h3 className="font-display font-semibold text-teal-800 dark:text-teal-200 text-sm">Next Appointment</h3>
+            </div>
+            {upcomingAppointments.length === 0 ? (
+              <div className="p-6 text-center">
+                <div className="w-10 h-10 rounded-full bg-clinical-100 flex items-center justify-center mx-auto mb-2">
+                  <svg className="w-5 h-5 text-navy-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                  </svg>
+                </div>
+                <p className="text-navy-500 font-body text-sm">No upcoming appointments</p>
+                <button
+                  onClick={() => openBookingModal('clinic')}
+                  className="mt-2 text-teal-600 hover:text-teal-700 font-medium text-sm"
+                >
+                  Book appointment
+                </button>
+              </div>
+            ) : (
+              <div className="divide-y divide-clinical-100">
+                {upcomingAppointments.slice(0, 5).map((apt) => (
+                  <div key={apt.id} className="p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`w-2 h-2 rounded-full ${
+                        apt.appointmentType === 'Procedure' ? 'bg-coral-500' :
+                        apt.appointmentType === 'Scan' ? 'bg-purple-500' :
+                        'bg-teal-500'
+                      }`} />
+                      <p className="font-display font-medium text-navy-900 text-sm">
+                        {new Date(apt.appointmentDate + 'T12:00:00').toLocaleDateString('en-US', {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                      </p>
+                    </div>
+                    <p className="text-navy-600 font-body text-xs ml-4">
+                      {apt.startTime.substring(0, 5)} · {apt.appointmentType}
+                    </p>
+                  </div>
+                ))}
+                {upcomingAppointments.length > 5 && (
+                  <div className="p-2 text-center">
+                    <span className="text-navy-400 text-xs">+{upcomingAppointments.length - 5} more</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Operation Date */}
+          <div className="card-clinical overflow-hidden mt-4">
+            <div className="px-4 py-3 border-b border-clinical-200 bg-coral-50 dark:bg-coral-900/20">
+              <h3 className="font-display font-semibold text-coral-800 dark:text-coral-200 text-sm">Operation Date</h3>
+            </div>
+            {(() => {
+              const operations = upcomingAppointments.filter(apt => apt.appointmentType === 'Procedure');
+              return operations.length === 0 ? (
+                <div className="p-6 text-center">
+                  <div className="w-10 h-10 rounded-full bg-coral-50 flex items-center justify-center mx-auto mb-2">
+                    <svg className="w-5 h-5 text-coral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <p className="text-navy-500 font-body text-sm">No operation scheduled</p>
+                  <button
+                    onClick={() => openBookingModal('operation')}
+                    className="mt-2 text-coral-600 hover:text-coral-700 font-medium text-sm"
+                  >
+                    Book operation
+                  </button>
+                </div>
+              ) : (
+                <div className="divide-y divide-clinical-100">
+                  {operations.slice(0, 3).map((apt) => (
+                    <div key={apt.id} className="p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="w-2 h-2 rounded-full bg-coral-500" />
+                        <p className="font-display font-medium text-navy-900 text-sm">
+                          {new Date(apt.appointmentDate + 'T12:00:00').toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </p>
+                      </div>
+                      <p className="text-navy-600 font-body text-xs ml-4">
+                        {apt.startTime.substring(0, 5)}
+                        {apt.notes && ` · ${apt.notes}`}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
       </div>
 
       {/* New Encounter Modal */}

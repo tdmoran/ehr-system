@@ -1,34 +1,24 @@
 import { useState, useEffect, FormEvent, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { usePatient } from '../hooks/usePatients';
-import { api, Encounter, CreateEncounterInput, Document, CreatePatientInput, OcrResult, Appointment } from '../api/client';
+import { api, Document, CreatePatientInput, OcrResult, Appointment } from '../api/client';
 import { OcrProcessingPanel } from '../components/ocr/OcrProcessingPanel';
 import { ExtractedFieldsReview } from '../components/ocr/ExtractedFieldsReview';
-
-const initialEncounterForm: Omit<CreateEncounterInput, 'patientId'> = {
-  chiefComplaint: '',
-  subjective: '',
-  objective: '',
-  assessment: '',
-  plan: '',
-};
 
 export default function PatientChart() {
   const { id } = useParams<{ id: string }>();
   const { patient, loading: patientLoading, refetch: refetchPatient } = usePatient(id!);
-  const [encounters, setEncounters] = useState<Encounter[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
-  const [activeTab, setActiveTab] = useState<'documents' | 'letters' | 'operative-notes' | 'overview' | 'notes' | 'encounters'>('documents');
+  const [activeTab, setActiveTab] = useState<'documents' | 'letters' | 'operative-notes' | 'clinic-notes' | 'notes'>('documents');
   const [notes, setNotes] = useState<string>('');
   const [notesSaving, setNotesSaving] = useState(false);
   const [notesSaved, setNotesSaved] = useState(false);
 
-  // Encounter form state
-  const [showNewEncounter, setShowNewEncounter] = useState(false);
-  const [encounterForm, setEncounterForm] = useState(initialEncounterForm);
-  const [formError, setFormError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  // Clinic notes state (stored in localStorage)
+  const [clinicNotes, setClinicNotes] = useState<string>('');
+  const [clinicNotesSaving, setClinicNotesSaving] = useState(false);
+  const [clinicNotesSaved, setClinicNotesSaved] = useState(false);
 
   // Document upload state
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -60,13 +50,18 @@ export default function PatientChart() {
   const [memoText, setMemoText] = useState('');
   const [memoSubmitting, setMemoSubmitting] = useState(false);
 
-  const fetchEncounters = () => {
-    if (id) {
-      api.getPatientEncounters(id).then(({ data }) => {
-        if (data) setEncounters(data.encounters);
-      });
-    }
-  };
+  // Flexible Laryngoscopy state (tracks if procedure was performed this visit)
+  const [flexibleLaryngoscopyDone, setFlexibleLaryngoscopyDone] = useState(false);
+
+  // MDT booking state
+  const [mdtBooked, setMdtBooked] = useState(false);
+  const [lastMdtDate] = useState<string | null>(null);
+
+  // Audiological assessment booking state
+  const [audiologicalBooked, setAudiologicalBooked] = useState(false);
+
+  // Allergy testing booking state
+  const [allergyTestingBooked, setAllergyTestingBooked] = useState(false);
 
   const fetchDocuments = () => {
     if (id) {
@@ -103,7 +98,6 @@ export default function PatientChart() {
   };
 
   useEffect(() => {
-    fetchEncounters();
     fetchDocuments();
     fetchUpcomingAppointments();
   }, [id]);
@@ -114,6 +108,16 @@ export default function PatientChart() {
       setNotes(patient.notes || '');
     }
   }, [patient]);
+
+  // Load clinic notes from localStorage
+  useEffect(() => {
+    if (id) {
+      const saved = localStorage.getItem(`clinicNotes_${id}`);
+      if (saved) {
+        setClinicNotes(saved);
+      }
+    }
+  }, [id]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>, category: 'scanned_document' | 'letter' | 'operative_note' = 'scanned_document') => {
     const file = e.target.files?.[0];
@@ -207,12 +211,6 @@ export default function PatientChart() {
     }
   };
 
-  const handleOpenEncounterModal = () => {
-    setEncounterForm(initialEncounterForm);
-    setFormError('');
-    setShowNewEncounter(true);
-  };
-
   // Booking modal handlers
   const openBookingModal = (type: 'clinic' | 'operation' | 'scan') => {
     setBookingType(type);
@@ -288,49 +286,6 @@ export default function PatientChart() {
     setMemoText('');
     setShowMemoModal(false);
     setMemoSubmitting(false);
-  };
-
-  const handleCloseEncounterModal = () => {
-    setShowNewEncounter(false);
-    setEncounterForm(initialEncounterForm);
-    setFormError('');
-  };
-
-  const handleEncounterInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
-    setEncounterForm(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleEncounterSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setFormError('');
-    setSubmitting(true);
-
-    if (!encounterForm.chiefComplaint?.trim()) {
-      setFormError('Chief complaint is required.');
-      setSubmitting(false);
-      return;
-    }
-
-    const { data, error } = await api.createEncounter({
-      patientId: id!,
-      ...encounterForm,
-    });
-
-    if (error) {
-      setFormError(error);
-      setSubmitting(false);
-      return;
-    }
-
-    if (data) {
-      handleCloseEncounterModal();
-      fetchEncounters();
-      setActiveTab('encounters');
-    }
-    setSubmitting(false);
   };
 
   // Edit patient handlers
@@ -421,10 +376,9 @@ export default function PatientChart() {
   const tabs = [
     { id: 'documents', label: 'Scanned Documents' },
     { id: 'letters', label: 'Letters' },
-    { id: 'operative-notes', label: 'Operative Notes' },
-    { id: 'overview', label: 'Overview' },
+    { id: 'clinic-notes', label: 'Clinic Notes' },
     { id: 'notes', label: 'Notes from Heidi' },
-    { id: 'encounters', label: 'Encounters' },
+    { id: 'operative-notes', label: 'Operative Notes' },
   ] as const;
 
   const calculateAge = (dob: string) => {
@@ -489,6 +443,99 @@ export default function PatientChart() {
               </div>
             </div>
 
+            {/* Action Buttons */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 mb-2">
+              {/* Book for MDT */}
+              <div className="flex flex-col items-center">
+                <button
+                  onClick={() => setMdtBooked(!mdtBooked)}
+                  className={`w-full px-4 py-3 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 shadow-sm transition-all ${
+                    mdtBooked
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 ring-2 ring-green-500'
+                      : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50'
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    {mdtBooked ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    )}
+                  </svg>
+                  Book for MDT {mdtBooked && '✓'}
+                </button>
+                <span className="text-xs text-navy-500 dark:text-navy-400 mt-1">
+                  Last MDT: {lastMdtDate || 'None'}
+                </span>
+              </div>
+
+              {/* Flexible Laryngoscopy */}
+              <div className="flex flex-col items-center">
+                <button
+                  onClick={() => setFlexibleLaryngoscopyDone(!flexibleLaryngoscopyDone)}
+                  className={`w-full px-4 py-3 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 shadow-sm transition-all ${
+                    flexibleLaryngoscopyDone
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 ring-2 ring-green-500'
+                      : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50'
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    {flexibleLaryngoscopyDone ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    )}
+                  </svg>
+                  Flexible Laryngoscopy {flexibleLaryngoscopyDone && '✓'}
+                </button>
+                <span className="text-xs text-navy-500 dark:text-navy-400 mt-1">&nbsp;</span>
+              </div>
+
+              {/* Audiological Assessment */}
+              <div className="flex flex-col items-center">
+                <button
+                  onClick={() => setAudiologicalBooked(!audiologicalBooked)}
+                  className={`w-full px-4 py-3 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 shadow-sm transition-all ${
+                    audiologicalBooked
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 ring-2 ring-green-500'
+                      : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/50'
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    {audiologicalBooked ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    )}
+                  </svg>
+                  Audiological Assessment {audiologicalBooked && '✓'}
+                </button>
+                <span className="text-xs text-navy-500 dark:text-navy-400 mt-1">&nbsp;</span>
+              </div>
+
+              {/* Allergy Testing */}
+              <div className="flex flex-col items-center">
+                <button
+                  onClick={() => setAllergyTestingBooked(!allergyTestingBooked)}
+                  className={`w-full px-4 py-3 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 shadow-sm transition-all ${
+                    allergyTestingBooked
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 ring-2 ring-green-500'
+                      : 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 hover:bg-rose-200 dark:hover:bg-rose-900/50'
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    {allergyTestingBooked ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                    )}
+                  </svg>
+                  Allergy Testing {allergyTestingBooked && '✓'}
+                </button>
+                <span className="text-xs text-navy-500 dark:text-navy-400 mt-1">&nbsp;</span>
+              </div>
+            </div>
+
             {/* Memo Task Button */}
             <div className="mt-4">
               <button
@@ -547,18 +594,56 @@ export default function PatientChart() {
 
           {/* Tab Content */}
           <div className="animate-fade-in">
-        {activeTab === 'overview' && (
-          <div className="max-w-xl">
-            {/* Allergies */}
-            <div className="card-clinical overflow-hidden">
-              <div className="px-5 py-4 border-b border-clinical-200 bg-clinical-50 flex items-center justify-between">
-                <h3 className="font-display font-semibold text-navy-900">Allergies</h3>
-                <span className="badge badge-danger">2</span>
+        {activeTab === 'clinic-notes' && (
+          <div className="card-clinical overflow-hidden">
+            <div className="px-6 py-4 border-b border-clinical-200 flex items-center justify-between">
+              <h3 className="font-display font-semibold text-navy-900 dark:text-navy-100">Clinic Notes</h3>
+              <div className="flex items-center gap-2">
+                {clinicNotesSaved && (
+                  <span className="text-sm text-green-600 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Saved
+                  </span>
+                )}
+                <button
+                  onClick={() => {
+                    setClinicNotesSaving(true);
+                    localStorage.setItem(`clinicNotes_${id}`, clinicNotes);
+                    setClinicNotesSaving(false);
+                    setClinicNotesSaved(true);
+                    setTimeout(() => setClinicNotesSaved(false), 2000);
+                  }}
+                  disabled={clinicNotesSaving}
+                  className="btn-primary text-sm py-2 flex items-center gap-2"
+                >
+                  {clinicNotesSaving ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                      Save Notes
+                    </>
+                  )}
+                </button>
               </div>
-              <div className="divide-y divide-clinical-100">
-                <AllergyRow allergen="Penicillin" reaction="Rash, hives" severity="moderate" />
-                <AllergyRow allergen="Shellfish" reaction="Anaphylaxis" severity="severe" />
-              </div>
+            </div>
+            <div className="p-4">
+              <textarea
+                value={clinicNotes}
+                onChange={(e) => setClinicNotes(e.target.value)}
+                placeholder="Type clinic notes here..."
+                className="w-full h-96 p-4 border border-clinical-200 dark:border-navy-700 rounded-lg font-body text-navy-900 dark:text-navy-100 dark:bg-navy-800 placeholder:text-navy-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
+              />
             </div>
           </div>
         )}
@@ -616,52 +701,6 @@ export default function PatientChart() {
                 className="w-full h-96 p-4 border border-clinical-200 rounded-lg font-body text-navy-900 placeholder:text-navy-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
               />
             </div>
-          </div>
-        )}
-
-        {activeTab === 'encounters' && (
-          <div className="card-clinical overflow-hidden">
-            <div className="px-6 py-4 border-b border-clinical-200 flex items-center justify-between">
-              <h3 className="font-display font-semibold text-navy-900">Encounter History</h3>
-              <button onClick={handleOpenEncounterModal} className="btn-primary text-sm py-2">New Encounter</button>
-            </div>
-            {encounters.length === 0 ? (
-              <div className="p-12 text-center">
-                <p className="text-navy-500 font-body">No encounters recorded yet.</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-clinical-100">
-                {encounters.map((encounter) => (
-                  <div key={encounter.id} className="p-6 hover:bg-clinical-50 transition-colors">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="flex items-center gap-3">
-                          <p className="font-display font-medium text-navy-900">
-                            {new Date(encounter.encounterDate).toLocaleDateString('en-US', {
-                              month: 'long',
-                              day: 'numeric',
-                              year: 'numeric',
-                            })}
-                          </p>
-                          <span className={`badge ${
-                            encounter.status === 'signed' ? 'badge-success' :
-                            encounter.status === 'completed' ? 'badge-neutral' :
-                            'badge-warning'
-                          }`}>
-                            {encounter.status === 'in_progress' ? 'In Progress' :
-                             encounter.status === 'completed' ? 'Completed' : 'Signed'}
-                          </span>
-                        </div>
-                        <p className="text-navy-500 font-body mt-1">{encounter.chiefComplaint || 'No chief complaint recorded'}</p>
-                      </div>
-                      <button className="text-teal-600 hover:text-teal-700 font-medium text-sm font-body">
-                        View
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         )}
 
@@ -1065,153 +1104,6 @@ export default function PatientChart() {
           </div>
         </div>
       </div>
-
-      {/* New Encounter Modal */}
-      {showNewEncounter && (
-        <div className="fixed inset-0 bg-navy-900/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-clinical-xl max-w-3xl w-full my-8 animate-slide-up">
-            <div className="flex items-center justify-between p-6 border-b border-clinical-200">
-              <div>
-                <h2 className="font-display text-xl font-bold text-navy-900">New Encounter</h2>
-                <p className="text-navy-500 font-body text-sm mt-1">
-                  {patient.firstName} {patient.lastName} • {patient.mrn}
-                </p>
-              </div>
-              <button
-                onClick={handleCloseEncounterModal}
-                className="w-8 h-8 rounded-lg hover:bg-navy-50 flex items-center justify-center"
-              >
-                <svg className="w-5 h-5 text-navy-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <form onSubmit={handleEncounterSubmit}>
-              <div className="p-6 space-y-6 max-h-[calc(100vh-220px)] overflow-y-auto">
-                {formError && (
-                  <div className="p-4 bg-coral-50 border border-coral-200 rounded-lg">
-                    <p className="text-coral-700 text-sm font-body flex items-center gap-2">
-                      <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                      {formError}
-                    </p>
-                  </div>
-                )}
-
-                {/* Chief Complaint */}
-                <div>
-                  <label htmlFor="chiefComplaint" className="block text-sm font-medium text-navy-700 font-body mb-1">
-                    Chief Complaint <span className="text-coral-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="chiefComplaint"
-                    name="chiefComplaint"
-                    value={encounterForm.chiefComplaint}
-                    onChange={handleEncounterInputChange}
-                    placeholder="Primary reason for visit"
-                    className="input-clinical"
-                    required
-                  />
-                </div>
-
-                {/* SOAP Notes */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Subjective */}
-                  <div>
-                    <label htmlFor="subjective" className="block text-sm font-medium text-navy-700 font-body mb-1">
-                      Subjective
-                      <span className="text-navy-400 font-normal ml-1">(History)</span>
-                    </label>
-                    <textarea
-                      id="subjective"
-                      name="subjective"
-                      value={encounterForm.subjective}
-                      onChange={handleEncounterInputChange}
-                      placeholder="Patient's description of symptoms, history of present illness..."
-                      rows={5}
-                      className="input-clinical resize-none"
-                    />
-                  </div>
-
-                  {/* Objective */}
-                  <div>
-                    <label htmlFor="objective" className="block text-sm font-medium text-navy-700 font-body mb-1">
-                      Objective
-                      <span className="text-navy-400 font-normal ml-1">(Exam Findings)</span>
-                    </label>
-                    <textarea
-                      id="objective"
-                      name="objective"
-                      value={encounterForm.objective}
-                      onChange={handleEncounterInputChange}
-                      placeholder="Physical examination findings, test results..."
-                      rows={5}
-                      className="input-clinical resize-none"
-                    />
-                  </div>
-
-                  {/* Assessment */}
-                  <div>
-                    <label htmlFor="assessment" className="block text-sm font-medium text-navy-700 font-body mb-1">
-                      Assessment
-                      <span className="text-navy-400 font-normal ml-1">(Diagnosis)</span>
-                    </label>
-                    <textarea
-                      id="assessment"
-                      name="assessment"
-                      value={encounterForm.assessment}
-                      onChange={handleEncounterInputChange}
-                      placeholder="Clinical impression, differential diagnosis..."
-                      rows={5}
-                      className="input-clinical resize-none"
-                    />
-                  </div>
-
-                  {/* Plan */}
-                  <div>
-                    <label htmlFor="plan" className="block text-sm font-medium text-navy-700 font-body mb-1">
-                      Plan
-                      <span className="text-navy-400 font-normal ml-1">(Treatment)</span>
-                    </label>
-                    <textarea
-                      id="plan"
-                      name="plan"
-                      value={encounterForm.plan}
-                      onChange={handleEncounterInputChange}
-                      placeholder="Treatment plan, follow-up instructions..."
-                      rows={5}
-                      className="input-clinical resize-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="flex gap-3 justify-end p-6 border-t border-clinical-200 bg-clinical-50 rounded-b-2xl">
-                <button type="button" onClick={handleCloseEncounterModal} className="btn-secondary" disabled={submitting}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary flex items-center gap-2" disabled={submitting}>
-                  {submitting ? (
-                    <>
-                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      Saving...
-                    </>
-                  ) : (
-                    'Create Encounter'
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Extracted Fields Review Modal */}
       {showExtractedFields && selectedDocumentForOcr && patient && (
@@ -1677,20 +1569,3 @@ export default function PatientChart() {
   );
 }
 
-function AllergyRow({ allergen, reaction, severity }: { allergen: string; reaction: string; severity: 'mild' | 'moderate' | 'severe' }) {
-  return (
-    <div className="px-5 py-4 flex items-center justify-between">
-      <div>
-        <p className="font-display font-medium text-navy-900">{allergen}</p>
-        <p className="text-sm text-navy-500 font-body">{reaction}</p>
-      </div>
-      <span className={`badge ${
-        severity === 'severe' ? 'badge-danger' :
-        severity === 'moderate' ? 'badge-warning' :
-        'badge-neutral'
-      }`}>
-        {severity}
-      </span>
-    </div>
-  );
-}

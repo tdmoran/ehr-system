@@ -180,18 +180,18 @@ export default function Dashboard() {
                   key={apt.id}
                   className={`flex items-center gap-4 px-6 py-4 transition-colors ${
                     isCurrent ? 'bg-teal-50 dark:bg-teal-900/20' :
-                    isPast ? 'opacity-60' : 'hover:bg-clinical-50 dark:hover:bg-navy-800/50'
+                    isPast ? '' : 'hover:bg-clinical-50 dark:hover:bg-navy-800/50'
                   }`}
                 >
-                  {/* Time */}
+                  {/* Time - stays bright even when completed */}
                   <div className="w-20 text-right">
-                    <p className={`font-display font-semibold ${isPast ? 'text-navy-400' : 'text-navy-900 dark:text-navy-100'}`}>
+                    <p className="font-display font-semibold text-navy-900 dark:text-navy-100">
                       {formatTime(apt.startTime)}
                     </p>
                   </div>
 
                   {/* Timeline dot */}
-                  <div className="flex flex-col items-center">
+                  <div className={`flex flex-col items-center ${isPast ? 'opacity-40' : ''}`}>
                     <div className={`w-3 h-3 rounded-full ${getStatusColor(apt.status)} ${isCurrent ? 'ring-4 ring-teal-200 dark:ring-teal-800' : ''}`} />
                     {index < displayedAppointments.length - 1 && (
                       <div className="w-0.5 h-12 bg-clinical-200 dark:bg-navy-700 -mb-4" />
@@ -199,11 +199,11 @@ export default function Dashboard() {
                   </div>
 
                   {/* Appointment Info */}
-                  <div className="flex-1 min-w-0">
+                  <div className={`flex-1 min-w-0 ${isPast ? 'opacity-40' : ''}`}>
                     <div className="flex items-center gap-2">
                       <Link
                         to={`/patients/${apt.patientId}`}
-                        className={`font-display font-semibold hover:underline ${isPast ? 'text-teal-400 dark:text-teal-500' : 'text-teal-600 dark:text-teal-400'}`}
+                        className={`font-display font-semibold hover:underline ${isPast ? 'text-navy-400 dark:text-navy-500' : 'text-teal-600 dark:text-teal-400'}`}
                       >
                         {apt.patientFirstName} {apt.patientLastName}
                       </Link>
@@ -227,7 +227,7 @@ export default function Dashboard() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2">
+                  <div className={`flex items-center gap-2 ${isPast ? 'opacity-40' : ''}`}
                     {/* Arrived and No Show buttons - only show for scheduled/confirmed appointments */}
                     {(apt.status === 'scheduled' || apt.status === 'confirmed') && (
                       <>

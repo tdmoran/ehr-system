@@ -219,6 +219,11 @@ export default function Dashboard() {
                           Checked In ✕
                         </button>
                       )}
+                      {apt.status === 'completed' && (
+                        <span className="badge bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+                          Completed
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-navy-500 dark:text-navy-400 font-body">
                       {apt.appointmentType}

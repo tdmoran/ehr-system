@@ -232,7 +232,7 @@ export default function Dashboard() {
                   </div>
 
                   {/* Actions */}
-                  <div className={`flex items-center gap-2 ${isPast ? 'opacity-40' : ''}`}
+                  <div className={`flex items-center gap-2 ${isPast ? 'opacity-40' : ''}`}>
                     {/* Arrived and No Show buttons - only show for scheduled/confirmed appointments */}
                     {(apt.status === 'scheduled' || apt.status === 'confirmed') && (
                       <>

@@ -1,7 +1,7 @@
 import { useState, useEffect, FormEvent, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { usePatient } from '../hooks/usePatients';
-import { api, Encounter, CreateEncounterInput, Document, CreatePatientInput, OcrResult } from '../api/client';
+import { api, Encounter, CreateEncounterInput, Document, CreatePatientInput, OcrResult, Appointment } from '../api/client';
 import { OcrProcessingPanel } from '../components/ocr/OcrProcessingPanel';
 import { ExtractedFieldsReview } from '../components/ocr/ExtractedFieldsReview';
 
@@ -18,6 +18,7 @@ export default function PatientChart() {
   const { patient, loading: patientLoading, refetch: refetchPatient } = usePatient(id!);
   const [encounters, setEncounters] = useState<Encounter[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
   const [activeTab, setActiveTab] = useState<'documents' | 'letters' | 'operative-notes' | 'overview' | 'notes' | 'encounters'>('documents');
   const [notes, setNotes] = useState<string>('');
   const [notesSaving, setNotesSaving] = useState(false);
@@ -85,9 +86,26 @@ export default function PatientChart() {
     }
   };
 
+  const fetchUpcomingAppointments = async () => {
+    if (id) {
+      const today = new Date().toISOString().split('T')[0];
+      const futureDate = new Date();
+      futureDate.setFullYear(futureDate.getFullYear() + 1);
+      const { data } = await api.getAppointments(today, futureDate.toISOString().split('T')[0]);
+      if (data) {
+        // Filter for this patient and sort by date
+        const patientAppointments = data.appointments
+          .filter(apt => apt.patientId === id && apt.status !== 'completed' && apt.status !== 'cancelled' && apt.status !== 'no_show')
+          .sort((a, b) => a.appointmentDate.localeCompare(b.appointmentDate) || a.startTime.localeCompare(b.startTime));
+        setUpcomingAppointments(patientAppointments);
+      }
+    }
+  };
+
   useEffect(() => {
     fetchEncounters();
     fetchDocuments();
+    fetchUpcomingAppointments();
   }, [id]);
 
   // Load notes from patient when patient data is available
@@ -601,48 +619,106 @@ export default function PatientChart() {
         )}
 
         {activeTab === 'encounters' && (
-          <div className="card-clinical overflow-hidden">
-            <div className="px-6 py-4 border-b border-clinical-200 flex items-center justify-between">
-              <h3 className="font-display font-semibold text-navy-900">Encounter History</h3>
-              <button onClick={handleOpenEncounterModal} className="btn-primary text-sm py-2">New Encounter</button>
-            </div>
-            {encounters.length === 0 ? (
-              <div className="p-12 text-center">
-                <p className="text-navy-500 font-body">No encounters recorded yet.</p>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Encounter History - Left side */}
+            <div className="lg:col-span-2 card-clinical overflow-hidden">
+              <div className="px-6 py-4 border-b border-clinical-200 flex items-center justify-between">
+                <h3 className="font-display font-semibold text-navy-900">Encounter History</h3>
+                <button onClick={handleOpenEncounterModal} className="btn-primary text-sm py-2">New Encounter</button>
               </div>
-            ) : (
-              <div className="divide-y divide-clinical-100">
-                {encounters.map((encounter) => (
-                  <div key={encounter.id} className="p-6 hover:bg-clinical-50 transition-colors">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="flex items-center gap-3">
-                          <p className="font-display font-medium text-navy-900">
-                            {new Date(encounter.encounterDate).toLocaleDateString('en-US', {
-                              month: 'long',
-                              day: 'numeric',
-                              year: 'numeric',
-                            })}
-                          </p>
-                          <span className={`badge ${
-                            encounter.status === 'signed' ? 'badge-success' :
-                            encounter.status === 'completed' ? 'badge-neutral' :
-                            'badge-warning'
-                          }`}>
-                            {encounter.status === 'in_progress' ? 'In Progress' :
-                             encounter.status === 'completed' ? 'Completed' : 'Signed'}
-                          </span>
+              {encounters.length === 0 ? (
+                <div className="p-12 text-center">
+                  <p className="text-navy-500 font-body">No encounters recorded yet.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-clinical-100">
+                  {encounters.map((encounter) => (
+                    <div key={encounter.id} className="p-6 hover:bg-clinical-50 transition-colors">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-3">
+                            <p className="font-display font-medium text-navy-900">
+                              {new Date(encounter.encounterDate).toLocaleDateString('en-US', {
+                                month: 'long',
+                                day: 'numeric',
+                                year: 'numeric',
+                              })}
+                            </p>
+                            <span className={`badge ${
+                              encounter.status === 'signed' ? 'badge-success' :
+                              encounter.status === 'completed' ? 'badge-neutral' :
+                              'badge-warning'
+                            }`}>
+                              {encounter.status === 'in_progress' ? 'In Progress' :
+                               encounter.status === 'completed' ? 'Completed' : 'Signed'}
+                            </span>
+                          </div>
+                          <p className="text-navy-500 font-body mt-1">{encounter.chiefComplaint || 'No chief complaint recorded'}</p>
                         </div>
-                        <p className="text-navy-500 font-body mt-1">{encounter.chiefComplaint || 'No chief complaint recorded'}</p>
+                        <button className="text-teal-600 hover:text-teal-700 font-medium text-sm font-body">
+                          View
+                        </button>
                       </div>
-                      <button className="text-teal-600 hover:text-teal-700 font-medium text-sm font-body">
-                        View
-                      </button>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Upcoming Appointments - Right side */}
+            <div className="card-clinical overflow-hidden">
+              <div className="px-6 py-4 border-b border-clinical-200">
+                <h3 className="font-display font-semibold text-navy-900">Next Appointment</h3>
               </div>
-            )}
+              {upcomingAppointments.length === 0 ? (
+                <div className="p-8 text-center">
+                  <div className="w-12 h-12 rounded-full bg-clinical-100 flex items-center justify-center mx-auto mb-3">
+                    <svg className="w-6 h-6 text-navy-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                    </svg>
+                  </div>
+                  <p className="text-navy-500 font-body text-sm">No upcoming appointments</p>
+                  <button
+                    onClick={() => openBookingModal('clinic')}
+                    className="mt-3 text-teal-600 hover:text-teal-700 font-medium text-sm"
+                  >
+                    Book appointment
+                  </button>
+                </div>
+              ) : (
+                <div className="divide-y divide-clinical-100">
+                  {upcomingAppointments.slice(0, 3).map((apt) => (
+                    <div key={apt.id} className="p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`w-2 h-2 rounded-full ${
+                          apt.appointmentType === 'Procedure' ? 'bg-coral-500' :
+                          apt.appointmentType === 'Scan' ? 'bg-purple-500' :
+                          'bg-teal-500'
+                        }`} />
+                        <p className="font-display font-medium text-navy-900 text-sm">
+                          {new Date(apt.appointmentDate + 'T12:00:00').toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </p>
+                      </div>
+                      <p className="text-navy-600 font-body text-sm">
+                        {apt.startTime.substring(0, 5)} · {apt.appointmentType}
+                      </p>
+                      {apt.notes && (
+                        <p className="text-navy-400 font-body text-xs mt-1 truncate">{apt.notes}</p>
+                      )}
+                    </div>
+                  ))}
+                  {upcomingAppointments.length > 3 && (
+                    <div className="p-3 text-center">
+                      <span className="text-navy-400 text-xs">+{upcomingAppointments.length - 3} more</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

@@ -18,7 +18,10 @@ export default function PatientChart() {
   const { patient, loading: patientLoading, refetch: refetchPatient } = usePatient(id!);
   const [encounters, setEncounters] = useState<Encounter[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'encounters' | 'documents'>('documents');
+  const [activeTab, setActiveTab] = useState<'documents' | 'letters' | 'operative-notes' | 'overview' | 'notes' | 'encounters'>('documents');
+  const [notes, setNotes] = useState<string>('');
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesSaved, setNotesSaved] = useState(false);
 
   // Encounter form state
   const [showNewEncounter, setShowNewEncounter] = useState(false);
@@ -73,14 +76,21 @@ export default function PatientChart() {
     fetchDocuments();
   }, [id]);
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Load notes from patient when patient data is available
+  useEffect(() => {
+    if (patient) {
+      setNotes(patient.notes || '');
+    }
+  }, [patient]);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>, category: 'scanned_document' | 'letter' | 'operative_note' = 'scanned_document') => {
     const file = e.target.files?.[0];
     if (!file || !id) return;
 
     setUploading(true);
     setUploadError('');
 
-    const { data, error } = await api.uploadDocument(id, file);
+    const { data, error } = await api.uploadDocument(id, file, undefined, category);
 
     if (error) {
       setUploadError(error);
@@ -93,6 +103,11 @@ export default function PatientChart() {
       fileInputRef.current.value = '';
     }
   };
+
+  // Filter documents by category
+  const scannedDocuments = documents.filter(doc => !doc.category || doc.category === 'scanned_document');
+  const letters = documents.filter(doc => doc.category === 'letter');
+  const operativeNotes = documents.filter(doc => doc.category === 'operative_note');
 
   const handleDeleteDocument = async (docId: string) => {
     if (!confirm('Are you sure you want to delete this document?')) return;
@@ -296,7 +311,10 @@ export default function PatientChart() {
 
   const tabs = [
     { id: 'documents', label: 'Scanned Documents' },
+    { id: 'letters', label: 'Letters' },
+    { id: 'operative-notes', label: 'Operative Notes' },
     { id: 'overview', label: 'Overview' },
+    { id: 'notes', label: 'Notes from Heidi' },
     { id: 'encounters', label: 'Encounters' },
   ] as const;
 
@@ -408,6 +426,62 @@ export default function PatientChart() {
           </div>
         )}
 
+        {activeTab === 'notes' && (
+          <div className="card-clinical overflow-hidden">
+            <div className="px-6 py-4 border-b border-clinical-200 flex items-center justify-between">
+              <h3 className="font-display font-semibold text-navy-900">Clinical Notes</h3>
+              <div className="flex items-center gap-2">
+                {notesSaved && (
+                  <span className="text-sm text-green-600 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Saved
+                  </span>
+                )}
+                <button
+                  onClick={async () => {
+                    setNotesSaving(true);
+                    const { error } = await api.updatePatient(id!, { notes });
+                    setNotesSaving(false);
+                    if (!error) {
+                      setNotesSaved(true);
+                      setTimeout(() => setNotesSaved(false), 2000);
+                    }
+                  }}
+                  disabled={notesSaving}
+                  className="btn-primary text-sm py-2 flex items-center gap-2"
+                >
+                  {notesSaving ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                      Save Notes
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+            <div className="p-4">
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Type or paste clinical notes here..."
+                className="w-full h-96 p-4 border border-clinical-200 rounded-lg font-body text-navy-900 placeholder:text-navy-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
+              />
+            </div>
+          </div>
+        )}
+
         {activeTab === 'encounters' && (
           <div className="card-clinical overflow-hidden">
             <div className="px-6 py-4 border-b border-clinical-200 flex items-center justify-between">
@@ -497,7 +571,7 @@ export default function PatientChart() {
               </div>
             )}
 
-            {documents.length === 0 ? (
+            {scannedDocuments.length === 0 ? (
               <div className="p-12 text-center">
                 <div className="w-16 h-16 rounded-full bg-navy-50 flex items-center justify-center mx-auto mb-4">
                   <svg className="w-8 h-8 text-navy-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -509,7 +583,7 @@ export default function PatientChart() {
               </div>
             ) : (
               <div className="divide-y divide-clinical-100">
-                {documents.map((doc) => (
+                {scannedDocuments.map((doc) => (
                   <div key={doc.id} className="p-4 hover:bg-clinical-50 transition-colors">
                     <div className="flex items-center gap-4">
                       <a
@@ -604,6 +678,146 @@ export default function PatientChart() {
                       </div>
                     )}
                   </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'letters' && (
+          <div className="card-clinical overflow-hidden">
+            <div className="px-6 py-4 border-b border-clinical-200 flex items-center justify-between">
+              <h3 className="font-display font-semibold text-navy-900">Letters</h3>
+              <div>
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.tiff"
+                  onChange={(e) => handleFileSelect(e, 'letter')}
+                  className="hidden"
+                  id="letter-upload"
+                />
+                <label
+                  htmlFor="letter-upload"
+                  className={`btn-primary text-sm py-2 cursor-pointer inline-flex items-center gap-2 ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  Upload Letter
+                </label>
+              </div>
+            </div>
+            {letters.length === 0 ? (
+              <div className="p-12 text-center">
+                <div className="w-16 h-16 rounded-full bg-navy-50 flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-navy-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                  </svg>
+                </div>
+                <p className="text-navy-900 font-display font-medium">No letters yet</p>
+                <p className="text-navy-500 font-body text-sm mt-1">Upload referral letters, medical certificates, and correspondence</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-clinical-100">
+                {letters.map((doc) => (
+                  <a
+                    key={doc.id}
+                    href={api.getDocumentUrl(doc.id)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-4 hover:bg-clinical-50 transition-colors flex items-center gap-4 cursor-pointer"
+                  >
+                    <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-display font-medium text-navy-900 truncate hover:text-teal-600">{doc.originalName}</p>
+                      <p className="text-sm text-navy-500 font-body">
+                        {formatFileSize(doc.fileSize)} • {new Date(doc.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <button
+                      onClick={(e) => { e.preventDefault(); handleDeleteDocument(doc.id); }}
+                      className="p-2 rounded-lg hover:bg-coral-50 text-navy-400 hover:text-coral-600 transition-colors"
+                      title="Delete"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                      </svg>
+                    </button>
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'operative-notes' && (
+          <div className="card-clinical overflow-hidden">
+            <div className="px-6 py-4 border-b border-clinical-200 flex items-center justify-between">
+              <h3 className="font-display font-semibold text-navy-900">Operative Notes</h3>
+              <div>
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.tiff"
+                  onChange={(e) => handleFileSelect(e, 'operative_note')}
+                  className="hidden"
+                  id="operative-note-upload"
+                />
+                <label
+                  htmlFor="operative-note-upload"
+                  className={`btn-primary text-sm py-2 cursor-pointer inline-flex items-center gap-2 ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  Upload Operative Note
+                </label>
+              </div>
+            </div>
+            {operativeNotes.length === 0 ? (
+              <div className="p-12 text-center">
+                <div className="w-16 h-16 rounded-full bg-navy-50 flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-navy-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
+                  </svg>
+                </div>
+                <p className="text-navy-900 font-display font-medium">No operative notes yet</p>
+                <p className="text-navy-500 font-body text-sm mt-1">Upload surgical procedures and operative findings</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-clinical-100">
+                {operativeNotes.map((doc) => (
+                  <a
+                    key={doc.id}
+                    href={api.getDocumentUrl(doc.id)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-4 hover:bg-clinical-50 transition-colors flex items-center gap-4 cursor-pointer"
+                  >
+                    <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-display font-medium text-navy-900 truncate hover:text-teal-600">{doc.originalName}</p>
+                      <p className="text-sm text-navy-500 font-body">
+                        {formatFileSize(doc.fileSize)} • {new Date(doc.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <button
+                      onClick={(e) => { e.preventDefault(); handleDeleteDocument(doc.id); }}
+                      className="p-2 rounded-lg hover:bg-coral-50 text-navy-400 hover:text-coral-600 transition-colors"
+                      title="Delete"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                      </svg>
+                    </button>
+                  </a>
                 ))}
               </div>
             )}

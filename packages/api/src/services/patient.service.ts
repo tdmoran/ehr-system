@@ -18,6 +18,7 @@ export interface Patient {
   emergencyContactPhone: string | null;
   insuranceProvider: string | null;
   insuranceId: string | null;
+  notes: string | null;
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -40,6 +41,7 @@ export interface CreatePatientInput {
   emergencyContactPhone?: string;
   insuranceProvider?: string;
   insuranceId?: string;
+  notes?: string;
 }
 
 function mapRow(row: Record<string, unknown>): Patient {
@@ -61,6 +63,7 @@ function mapRow(row: Record<string, unknown>): Patient {
     emergencyContactPhone: row.emergency_contact_phone as string | null,
     insuranceProvider: row.insurance_provider as string | null,
     insuranceId: row.insurance_id as string | null,
+    notes: row.notes as string | null,
     active: row.active as boolean,
     createdAt: row.created_at as Date,
     updatedAt: row.updated_at as Date,
@@ -154,6 +157,7 @@ export async function update(id: string, input: Partial<CreatePatientInput>): Pr
     emergencyContactPhone: 'emergency_contact_phone',
     insuranceProvider: 'insurance_provider',
     insuranceId: 'insurance_id',
+    notes: 'notes',
   };
 
   for (const [key, dbField] of Object.entries(fieldMap)) {

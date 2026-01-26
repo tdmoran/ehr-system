@@ -97,10 +97,11 @@ export const api = {
   getPatientDocuments: (patientId: string) =>
     request<{ documents: Document[] }>(`/documents/patient/${patientId}`),
 
-  uploadDocument: async (patientId: string, file: File, description?: string): Promise<ApiResponse<{ document: Document }>> => {
+  uploadDocument: async (patientId: string, file: File, description?: string, category: 'scanned_document' | 'letter' | 'operative_note' = 'scanned_document'): Promise<ApiResponse<{ document: Document }>> => {
     const token = localStorage.getItem('token');
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('category', category);
     if (description) {
       formData.append('description', description);
     }
@@ -270,6 +271,7 @@ export interface Patient {
   state: string | null;
   zip: string | null;
   insuranceProvider: string | null;
+  notes: string | null;
   active: boolean;
 }
 
@@ -287,6 +289,7 @@ export interface CreatePatientInput {
   zip?: string;
   insuranceProvider?: string;
   insuranceId?: string;
+  notes?: string;
 }
 
 export interface Encounter {
@@ -321,6 +324,7 @@ export interface Document {
   mimeType: string;
   fileSize: number;
   description: string | null;
+  category: 'scanned_document' | 'letter' | 'operative_note';
   createdAt: string;
 }
 

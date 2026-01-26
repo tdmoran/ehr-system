@@ -84,6 +84,7 @@ router.post(
         mimeType: req.file.mimetype,
         fileSize: req.file.size,
         description: req.body.description,
+        category: req.body.category || 'scanned_document',
       });
 
       await logAudit(req, {

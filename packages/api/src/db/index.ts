@@ -13,6 +13,11 @@ export const pool = new Pool({
   ssl: isCloudDB ? { rejectUnauthorized: false } : false,
 });
 
+// Set search_path to include public schema (needed for Neon)
+pool.on('connect', (client) => {
+  client.query('SET search_path TO public');
+});
+
 export async function query<T extends pg.QueryResultRow = pg.QueryResultRow>(
   text: string,
   params?: unknown[]

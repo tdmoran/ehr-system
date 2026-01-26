@@ -439,7 +439,7 @@ export default function PatientChart() {
 
             {/* Memo Task Button */}
             <div className="mt-4">
-              <button className="px-3 py-1.5 text-xs font-medium bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg transition-colors">
+              <button className="px-6 py-3 text-sm font-medium bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg transition-colors">
                 Memo Task
               </button>
             </div>

@@ -518,6 +518,34 @@ export default function PatientChart() {
                 <p className="font-display font-medium text-navy-900 mt-1">Dr. Smith</p>
               </div>
             </div>
+
+            {/* Next Appointment */}
+            <div className="mt-4 p-4 bg-teal-50 dark:bg-teal-900/20 rounded-xl border border-teal-200 dark:border-teal-800">
+              <h4 className="text-xs text-teal-600 dark:text-teal-400 font-body uppercase tracking-wide mb-2">Next Appointment</h4>
+              {upcomingAppointments.length === 0 ? (
+                <p className="text-navy-500 font-body text-sm">No upcoming appointments</p>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div className={`w-3 h-3 rounded-full ${
+                    upcomingAppointments[0].appointmentType === 'Procedure' ? 'bg-coral-500' :
+                    upcomingAppointments[0].appointmentType === 'Scan' ? 'bg-purple-500' :
+                    'bg-teal-500'
+                  }`} />
+                  <div>
+                    <p className="font-display font-semibold text-navy-900 dark:text-navy-100">
+                      {new Date(upcomingAppointments[0].appointmentDate + 'T12:00:00').toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        month: 'long',
+                        day: 'numeric',
+                      })}
+                    </p>
+                    <p className="text-navy-600 dark:text-navy-400 font-body text-sm">
+                      {upcomingAppointments[0].startTime.substring(0, 5)} · {upcomingAppointments[0].appointmentType}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

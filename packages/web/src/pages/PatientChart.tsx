@@ -527,22 +527,19 @@ export default function PatientChart() {
         {/* Left side - Tabs and content */}
         <div className="lg:col-span-3">
           {/* Tabs */}
-          <div className="border-b border-clinical-200">
-            <nav className="flex gap-1">
+          <div className="border-b-2 border-clinical-200 mb-4">
+            <nav className="flex flex-wrap gap-2">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`px-4 py-3 font-display font-medium text-sm transition-colors relative ${
+                  className={`px-5 py-3 font-display font-semibold text-base transition-all relative rounded-t-lg ${
                     activeTab === tab.id
-                      ? 'text-teal-600'
-                      : 'text-navy-500 hover:text-navy-700'
+                      ? 'text-teal-700 bg-teal-50 dark:bg-teal-900/20 dark:text-teal-400 border-2 border-b-0 border-teal-300 dark:border-teal-700 -mb-0.5'
+                      : 'text-navy-500 hover:text-navy-700 hover:bg-clinical-50 dark:text-navy-400 dark:hover:text-navy-200'
                   }`}
                 >
                   {tab.label}
-                  {activeTab === tab.id && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-teal-500 rounded-full" />
-                  )}
                 </button>
               ))}
             </nav>

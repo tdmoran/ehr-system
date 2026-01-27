@@ -114,6 +114,8 @@ All routes prefixed with `/api`:
 
 ## Database
 
+**Important:** The database is hosted on Neon.tech. When making schema changes, create new migration files in `database/migrations/` and run `npm run db:migrate` to apply them to the live database.
+
 PostgreSQL with these core tables:
 - `users` - Authentication and roles
 - `patients` - Demographics, contact, insurance

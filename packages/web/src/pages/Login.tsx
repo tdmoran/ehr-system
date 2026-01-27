@@ -5,8 +5,8 @@ import { useAuth } from '../context/AuthContext';
 export default function Login() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('drmoran@example.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('doc@t.co');
+  const [password, setPassword] = useState('123');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -160,7 +160,7 @@ export default function Login() {
           </form>
 
           <p className="mt-8 text-center text-sm text-navy-400 font-body">
-            Demo credentials: <span className="font-mono text-navy-600">drmoran@example.com</span>
+            Demo credentials: <span className="font-mono text-navy-600">doc@t.co</span> / <span className="font-mono text-navy-600">123</span>
           </p>
         </div>
       </div>

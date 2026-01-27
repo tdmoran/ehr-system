@@ -2,7 +2,7 @@
 -- DO NOT use real patient information
 
 -- Insert test users with bcrypt hashed passwords
--- All passwords are: password123
+-- Demo passwords: doc@t.co and sec@t.co use "123", others use "password123"
 
 -- Admin user
 INSERT INTO users (id, email, password_hash, first_name, last_name, role) VALUES
@@ -10,7 +10,7 @@ INSERT INTO users (id, email, password_hash, first_name, last_name, role) VALUES
 
 -- Provider (doctor)
 INSERT INTO users (id, email, password_hash, first_name, last_name, role) VALUES
-('a0000000-0000-0000-0000-000000000002', 'drmoran@example.com', '$2b$10$hkCFa4g6UL4PzHft.gVNNesI5KyTV.wWV38AtP9pX6dPC4H24lWzy', 'Tom', 'Moran', 'provider');
+('a0000000-0000-0000-0000-000000000002', 'doc@t.co', '$2b$10$vM5iu7K8OAQi.sjr3CvM1OOzqHb.hnOUBL4M4dw9E4HE9N/qxZRQi', 'Tom', 'Moran', 'provider');
 
 -- Nurse
 INSERT INTO users (id, email, password_hash, first_name, last_name, role) VALUES
@@ -18,7 +18,7 @@ INSERT INTO users (id, email, password_hash, first_name, last_name, role) VALUES
 
 -- Secretary (linked to Dr. Moran)
 INSERT INTO users (id, email, password_hash, first_name, last_name, role, provider_id) VALUES
-('a0000000-0000-0000-0000-000000000004', 'secretary.moran@example.com', '$2b$10$hkCFa4g6UL4PzHft.gVNNesI5KyTV.wWV38AtP9pX6dPC4H24lWzy', 'Emily', 'Smith', 'secretary', 'a0000000-0000-0000-0000-000000000002');
+('a0000000-0000-0000-0000-000000000004', 'sec@t.co', '$2b$10$vM5iu7K8OAQi.sjr3CvM1OOzqHb.hnOUBL4M4dw9E4HE9N/qxZRQi', 'Emily', 'Smith', 'secretary', 'a0000000-0000-0000-0000-000000000002');
 
 -- Insert test patients (fake data)
 INSERT INTO patients (id, mrn, first_name, last_name, date_of_birth, gender, email, phone, address_line1, city, state, zip, insurance_provider, insurance_id) VALUES

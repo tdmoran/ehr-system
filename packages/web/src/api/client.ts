@@ -94,8 +94,18 @@ export const api = {
     request<{ encounter: Encounter }>(`/encounters/${id}/sign`, { method: 'POST' }),
 
   // Documents
+  getAllDocuments: () =>
+    request<{ documents: Document[] }>(`/documents`),
   getPatientDocuments: (patientId: string) =>
     request<{ documents: Document[] }>(`/documents/patient/${patientId}`),
+
+  // Procedure Templates
+  getProcedureTemplates: () =>
+    request<{ templates: ProcedureTemplate[] }>(`/procedure-templates`),
+  getProcedureTemplate: (id: string) =>
+    request<{ template: ProcedureTemplateWithContent }>(`/procedure-templates/${id}`),
+  getProcedureTemplateDownloadUrl: (id: string) =>
+    `${API_URL}/api/procedure-templates/${id}/download`,
 
   uploadDocument: async (patientId: string, file: File, description?: string, category: 'scanned_document' | 'letter' | 'operative_note' = 'scanned_document'): Promise<ApiResponse<{ document: Document }>> => {
     const token = localStorage.getItem('token');
@@ -382,6 +392,18 @@ export interface Document {
   description: string | null;
   category: 'scanned_document' | 'letter' | 'operative_note';
   createdAt: string;
+}
+
+export interface ProcedureTemplate {
+  id: string;
+  name: string;
+  filename: string;
+  description: string;
+  category: string;
+}
+
+export interface ProcedureTemplateWithContent extends ProcedureTemplate {
+  content: string;
 }
 
 export interface Appointment {

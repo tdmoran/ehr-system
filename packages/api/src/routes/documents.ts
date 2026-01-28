@@ -46,6 +46,24 @@ const upload = multer({
 
 router.use(authenticate);
 
+// Get all documents (with optional filters)
+router.get('/', async (req, res) => {
+  try {
+    const documents = await documentService.findAll();
+
+    await logAudit(req, {
+      action: 'view',
+      resourceType: 'document',
+      details: { count: documents.length },
+    });
+
+    res.json({ documents });
+  } catch (error) {
+    console.error('Get all documents error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get documents for a patient
 router.get('/patient/:patientId', async (req, res) => {
   try {

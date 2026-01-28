@@ -6,6 +6,7 @@ import Patients from './pages/Patients';
 import PatientChart from './pages/PatientChart';
 import Calendar from './pages/Calendar';
 import SecretaryDashboard from './pages/SecretaryDashboard';
+import Documents from './pages/Documents';
 import Layout from './components/Layout';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -42,6 +43,7 @@ export default function App() {
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/patients" element={<Patients />} />
                 <Route path="/patients/:id" element={<PatientChart />} />
+                <Route path="/documents" element={<Documents />} />
                 <Route path="/calendar" element={<Calendar />} />
                 <Route path="/schedule" element={<SecretaryDashboard />} />
               </Routes>

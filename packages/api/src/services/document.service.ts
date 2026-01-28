@@ -41,6 +41,24 @@ function mapRow(row: Record<string, unknown>): Document {
   };
 }
 
+export async function findAll(): Promise<Document[]> {
+  const result = await query<Record<string, unknown>>(
+    `SELECT d.*, p.first_name, p.last_name, p.mrn, u.first_name as uploader_first_name, u.last_name as uploader_last_name
+     FROM documents d
+     JOIN patients p ON d.patient_id = p.id
+     JOIN users u ON d.uploaded_by = u.id
+     ORDER BY d.created_at DESC`
+  );
+  return result.rows.map((row) => ({
+    ...mapRow(row),
+    patientFirstName: row.first_name as string,
+    patientLastName: row.last_name as string,
+    patientMrn: row.mrn as string,
+    uploaderFirstName: row.uploader_first_name as string,
+    uploaderLastName: row.uploader_last_name as string,
+  } as any));
+}
+
 export async function findByPatientId(patientId: string): Promise<Document[]> {
   const result = await query<Record<string, unknown>>(
     `SELECT * FROM documents WHERE patient_id = $1 ORDER BY created_at DESC`,

@@ -35,7 +35,8 @@ This is a full-stack Electronic Health Record (EHR) system built with TypeScript
 │   │   │   ├── services/ # Business logic
 │   │   │   ├── middleware/
 │   │   │   └── config/
-│   │   └── uploads/      # Document storage
+│   │   ├── uploads/      # Patient document storage
+│   │   └── procedure-templates/  # Reference procedure documents
 │   ├── web/              # React frontend
 │   │   └── src/
 │   │       ├── components/
@@ -111,6 +112,22 @@ All routes prefixed with `/api`:
 - `admin` - System administrators
 - `billing` - Billing department
 - `secretary` - Front desk/scheduling
+
+### Procedure Templates Repository
+
+The `packages/api/procedure-templates/` folder contains comprehensive patient information documents for common otolaryngology procedures. These serve as reference materials that can be used for any patient:
+
+**Current Procedures:**
+- **Tonsillectomy**: Complete patient guide including indications, procedure details, post-op care, risks/complications
+- **Septoplasty**: Detailed information on nasal septum surgery, recovery timeline, and expected outcomes
+
+**Usage:**
+- Pre-operative patient education
+- Informed consent discussions
+- Post-operative instruction reference
+- Standard information delivery across patients
+
+Documents are in Markdown format and can be converted to PDF for distribution.
 
 ## Database
 

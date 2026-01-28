@@ -8,6 +8,7 @@ import ocrRoutes from './ocr.js';
 import referralRoutes from './referrals.js';
 import calendarRoutes from './calendar.js';
 import taskRoutes from './tasks.js';
+import procedureTemplateRoutes from './procedureTemplates.js';
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use('/ocr', ocrRoutes);
 router.use('/referrals', referralRoutes);
 router.use('/calendar', calendarRoutes);
 router.use('/tasks', taskRoutes);
+router.use('/procedure-templates', procedureTemplateRoutes);
 
 export default router;

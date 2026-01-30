@@ -623,6 +623,37 @@ export default function PatientChart() {
                 <p className="font-display font-medium text-navy-900 mt-1">Dr. Smith</p>
               </div>
             </div>
+
+            {/* Visit History Summary */}
+            {encounters.length > 0 && (
+              <div className="mt-4 p-3 bg-navy-50 dark:bg-navy-800/50 rounded-lg">
+                <p className="text-xs text-navy-500 dark:text-navy-400 font-body uppercase tracking-wide mb-2">Visit History</p>
+                <div className="flex flex-wrap gap-2">
+                  {encounters.map((encounter) => {
+                    const date = new Date(encounter.encounterDate);
+                    const shortDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    // Extract up to 5 words from chief complaint or assessment
+                    const complaint = encounter.chiefComplaint || encounter.assessment || 'Visit';
+                    const words = complaint.split(/\s+/).slice(0, 5).join(' ');
+                    const summary = words.length > 30 ? words.substring(0, 30) + '…' : words;
+                    return (
+                      <button
+                        key={encounter.id}
+                        onClick={() => {
+                          setSelectedEncounter(encounter);
+                          setShowEncounterModal(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-navy-700 rounded-full text-xs font-medium text-navy-600 dark:text-navy-300 hover:bg-teal-50 dark:hover:bg-teal-900/30 hover:text-teal-700 dark:hover:text-teal-400 transition-colors border border-navy-200 dark:border-navy-600 hover:border-teal-300 dark:hover:border-teal-600"
+                        title={complaint}
+                      >
+                        <span className="text-navy-400 dark:text-navy-500">{shortDate}</span>
+                        <span className="font-semibold">{summary}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
         </div>

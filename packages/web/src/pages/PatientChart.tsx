@@ -1,7 +1,7 @@
 import { useState, useEffect, FormEvent, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { usePatient } from '../hooks/usePatients';
-import { api, Document, CreatePatientInput, OcrResult, Appointment } from '../api/client';
+import { api, Document, CreatePatientInput, OcrResult, Appointment, Encounter } from '../api/client';
 import { OcrProcessingPanel } from '../components/ocr/OcrProcessingPanel';
 import { ExtractedFieldsReview } from '../components/ocr/ExtractedFieldsReview';
 
@@ -10,6 +10,7 @@ export default function PatientChart() {
   const { patient, loading: patientLoading, refetch: refetchPatient } = usePatient(id!);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
+  const [encounters, setEncounters] = useState<Encounter[]>([]);
   const [activeTab, setActiveTab] = useState<'documents' | 'letters' | 'operative-notes' | 'clinic-notes' | 'notes'>('documents');
   const [notes, setNotes] = useState<string>('');
   const [notesSaving, setNotesSaving] = useState(false);
@@ -63,6 +64,10 @@ export default function PatientChart() {
   // Allergy testing booking state
   const [allergyTestingBooked, setAllergyTestingBooked] = useState(false);
 
+  // Selected encounter state (for viewing past visits)
+  const [selectedEncounter, setSelectedEncounter] = useState<Encounter | null>(null);
+  const [showEncounterModal, setShowEncounterModal] = useState(false);
+
   const fetchDocuments = () => {
     if (id) {
       api.getPatientDocuments(id).then(({ data }) => {
@@ -97,9 +102,23 @@ export default function PatientChart() {
     }
   };
 
+  const fetchEncounters = async () => {
+    if (id) {
+      const { data } = await api.getPatientEncounters(id);
+      if (data) {
+        // Sort by date, most recent first
+        const sortedEncounters = data.encounters.sort((a, b) =>
+          new Date(b.encounterDate).getTime() - new Date(a.encounterDate).getTime()
+        );
+        setEncounters(sortedEncounters);
+      }
+    }
+  };
+
   useEffect(() => {
     fetchDocuments();
     fetchUpcomingAppointments();
+    fetchEncounters();
   }, [id]);
 
   // Load notes from patient when patient data is available
@@ -391,8 +410,52 @@ export default function PatientChart() {
         <span className="text-teal-600 dark:text-teal-400 font-semibold">{patient.firstName} {patient.lastName}</span>
       </nav>
 
-      {/* Patient Header */}
-      <div className="card-clinical p-6">
+      {/* Patient Header - Stacked Pages Effect */}
+      <div className="relative">
+        {/* Background pages (previous visits) - only show if there are encounters */}
+        {encounters.length > 1 && (
+          <>
+            <div className="absolute -left-1 top-3 right-1 bottom-0 rounded-xl bg-navy-200/50 dark:bg-navy-700/30 transform -rotate-1" />
+            <div className="absolute -left-0.5 top-1.5 right-0.5 bottom-0 rounded-xl bg-navy-100/70 dark:bg-navy-800/50 transform rotate-0.5" />
+          </>
+        )}
+
+        {/* Visit date tabs on the side - dynamically from encounters */}
+        {encounters.length > 0 && (
+          <div className="absolute -left-2 top-8 flex flex-col gap-1 z-10">
+            {encounters.slice(0, 5).map((encounter, index) => {
+              const date = new Date(encounter.encounterDate);
+              const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              const isSelected = selectedEncounter?.id === encounter.id;
+              const unselectedColors = [
+                'bg-navy-200 dark:bg-navy-700 text-navy-600 dark:text-navy-300',
+                'bg-navy-300 dark:bg-navy-600 text-navy-700 dark:text-navy-200',
+                'bg-navy-400 dark:bg-navy-500 text-white',
+                'bg-navy-500 dark:bg-navy-400 text-white',
+                'bg-navy-600 dark:bg-navy-300 text-white',
+              ];
+              const tabColor = isSelected
+                ? 'bg-teal-500 dark:bg-teal-600 text-white ring-2 ring-teal-300 dark:ring-teal-400 shadow-lg'
+                : unselectedColors[index];
+              return (
+                <div
+                  key={encounter.id}
+                  onClick={() => {
+                    setSelectedEncounter(encounter);
+                    setShowEncounterModal(true);
+                  }}
+                  className={`${tabColor} text-[10px] font-mono px-2 py-1 rounded-l-md shadow-sm transform -rotate-90 origin-right translate-x-[-100%] whitespace-nowrap cursor-pointer hover:scale-110 hover:shadow-md transition-all ${index > 0 ? 'mt-8' : ''}`}
+                  title={`Click to view: ${formattedDate} - ${encounter.chiefComplaint || 'Visit'}`}
+                >
+                  {formattedDate}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Current visit (main card) */}
+        <div className="card-clinical p-6 relative z-20">
         <div className="flex flex-col md:flex-row md:items-start gap-6">
           {/* Patient Info */}
           <div className="flex-1">
@@ -544,9 +607,16 @@ export default function PatientChart() {
                 <p className="text-xs text-navy-500 font-body uppercase tracking-wide">Email</p>
                 <p className="font-display font-medium text-navy-900 mt-1">{patient.email || '—'}</p>
               </div>
-              <div className="p-3 bg-coral-50 rounded-lg border border-coral-100">
-                <p className="text-xs text-coral-600 font-body uppercase tracking-wide">Allergies</p>
-                <p className="font-display font-medium text-coral-700 mt-1">Penicillin, Shellfish</p>
+              <div className="p-3 bg-coral-50 dark:bg-coral-900/30 rounded-lg border-2 border-coral-300 dark:border-coral-700 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-16 h-16 bg-coral-200/30 dark:bg-coral-500/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+                <div className="flex items-center gap-1.5">
+                  <svg className="w-3.5 h-3.5 text-coral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <p className="text-xs text-coral-600 dark:text-coral-400 font-body uppercase tracking-wide font-semibold">Allergies</p>
+                  <span className="w-2 h-2 rounded-full bg-coral-500 animate-pulse" />
+                </div>
+                <p className="font-display font-semibold text-coral-700 dark:text-coral-300 mt-1 relative">Penicillin, Shellfish</p>
               </div>
               <div className="p-3 bg-clinical-50 rounded-lg">
                 <p className="text-xs text-navy-500 font-body uppercase tracking-wide">Patient's GP</p>
@@ -554,6 +624,7 @@ export default function PatientChart() {
               </div>
             </div>
           </div>
+        </div>
         </div>
       </div>
 
@@ -739,13 +810,21 @@ export default function PatientChart() {
 
             {scannedDocuments.length === 0 ? (
               <div className="p-12 text-center">
-                <div className="w-16 h-16 rounded-full bg-navy-50 flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-navy-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <div className="w-16 h-16 rounded-full bg-navy-50 dark:bg-navy-800 flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-navy-300 dark:text-navy-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                   </svg>
                 </div>
-                <p className="text-navy-900 font-display font-medium">No documents uploaded</p>
-                <p className="text-navy-500 font-body text-sm mt-1">Upload PDF or image files to add to the patient's chart</p>
+                <p className="text-navy-900 dark:text-navy-100 font-display font-medium">No documents uploaded</p>
+                <p className="text-navy-500 dark:text-navy-400 font-body text-sm mt-1 mb-3">
+                  Upload referral letters, lab results, imaging reports, or other clinical documents
+                </p>
+                <div className="flex flex-wrap justify-center gap-2 text-xs text-navy-400 dark:text-navy-500">
+                  <span className="px-2 py-1 bg-clinical-50 dark:bg-navy-800 rounded">PDF</span>
+                  <span className="px-2 py-1 bg-clinical-50 dark:bg-navy-800 rounded">JPG</span>
+                  <span className="px-2 py-1 bg-clinical-50 dark:bg-navy-800 rounded">PNG</span>
+                  <span className="px-2 py-1 bg-clinical-50 dark:bg-navy-800 rounded">DICOM</span>
+                </div>
               </div>
             ) : (
               <div className="divide-y divide-clinical-100">
@@ -1001,15 +1080,16 @@ export default function PatientChart() {
             </div>
             {upcomingAppointments.length === 0 ? (
               <div className="p-6 text-center">
-                <div className="w-10 h-10 rounded-full bg-clinical-100 flex items-center justify-center mx-auto mb-2">
-                  <svg className="w-5 h-5 text-navy-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <div className="w-10 h-10 rounded-full bg-clinical-100 dark:bg-navy-800 flex items-center justify-center mx-auto mb-2">
+                  <svg className="w-5 h-5 text-navy-400 dark:text-navy-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
                   </svg>
                 </div>
-                <p className="text-navy-500 font-body text-sm">No upcoming appointments</p>
+                <p className="text-navy-600 dark:text-navy-300 font-body text-sm font-medium">No upcoming appointments</p>
+                <p className="text-navy-400 dark:text-navy-500 font-body text-xs mt-1 mb-3">Schedule a clinic visit or procedure</p>
                 <button
                   onClick={() => openBookingModal('clinic')}
-                  className="mt-2 text-teal-600 hover:text-teal-700 font-medium text-sm"
+                  className="btn-primary text-sm py-2 px-4"
                 >
                   Book appointment
                 </button>
@@ -1552,6 +1632,147 @@ export default function PatientChart() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Encounter Details Modal */}
+      {showEncounterModal && selectedEncounter && (
+        <div className="fixed inset-0 bg-navy-900/50 flex items-center justify-center z-50 p-4" onClick={() => setShowEncounterModal(false)}>
+          <div
+            className="bg-white dark:bg-navy-900 rounded-2xl shadow-clinical-xl max-w-2xl w-full max-h-[90vh] overflow-hidden animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-clinical-200 dark:border-navy-700 bg-gradient-to-r from-teal-500 to-teal-600">
+              <div>
+                <h2 className="font-display text-xl font-bold text-white">
+                  Visit on {new Date(selectedEncounter.encounterDate).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </h2>
+                <p className="text-teal-100 font-body text-sm mt-1">
+                  {selectedEncounter.chiefComplaint || 'Clinical Visit'}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowEncounterModal(false)}
+                className="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+              >
+                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* SOAP Note Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)] space-y-6">
+              {/* Status Badge */}
+              <div className="flex items-center gap-3">
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  selectedEncounter.status === 'signed'
+                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                    : selectedEncounter.status === 'completed'
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                    : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                }`}>
+                  {selectedEncounter.status === 'signed' ? '✓ Signed' : selectedEncounter.status === 'completed' ? 'Completed' : 'In Progress'}
+                </span>
+                {selectedEncounter.signedAt && (
+                  <span className="text-sm text-navy-500 dark:text-navy-400">
+                    Signed on {new Date(selectedEncounter.signedAt).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+
+              {/* Chief Complaint */}
+              {selectedEncounter.chiefComplaint && (
+                <div>
+                  <h3 className="font-display font-semibold text-navy-900 dark:text-navy-100 mb-2 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-coral-500"></span>
+                    Chief Complaint
+                  </h3>
+                  <p className="text-navy-700 dark:text-navy-300 font-body bg-coral-50 dark:bg-coral-900/20 p-4 rounded-lg border-l-4 border-coral-400">
+                    {selectedEncounter.chiefComplaint}
+                  </p>
+                </div>
+              )}
+
+              {/* Subjective */}
+              {selectedEncounter.subjective && (
+                <div>
+                  <h3 className="font-display font-semibold text-navy-900 dark:text-navy-100 mb-2 flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs font-bold">S</span>
+                    Subjective
+                  </h3>
+                  <p className="text-navy-700 dark:text-navy-300 font-body bg-clinical-50 dark:bg-navy-800 p-4 rounded-lg whitespace-pre-wrap">
+                    {selectedEncounter.subjective}
+                  </p>
+                </div>
+              )}
+
+              {/* Objective */}
+              {selectedEncounter.objective && (
+                <div>
+                  <h3 className="font-display font-semibold text-navy-900 dark:text-navy-100 mb-2 flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 flex items-center justify-center text-xs font-bold">O</span>
+                    Objective
+                  </h3>
+                  <p className="text-navy-700 dark:text-navy-300 font-body bg-clinical-50 dark:bg-navy-800 p-4 rounded-lg whitespace-pre-wrap">
+                    {selectedEncounter.objective}
+                  </p>
+                </div>
+              )}
+
+              {/* Assessment */}
+              {selectedEncounter.assessment && (
+                <div>
+                  <h3 className="font-display font-semibold text-navy-900 dark:text-navy-100 mb-2 flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xs font-bold">A</span>
+                    Assessment
+                  </h3>
+                  <p className="text-navy-700 dark:text-navy-300 font-body bg-clinical-50 dark:bg-navy-800 p-4 rounded-lg whitespace-pre-wrap">
+                    {selectedEncounter.assessment}
+                  </p>
+                </div>
+              )}
+
+              {/* Plan */}
+              {selectedEncounter.plan && (
+                <div>
+                  <h3 className="font-display font-semibold text-navy-900 dark:text-navy-100 mb-2 flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 flex items-center justify-center text-xs font-bold">P</span>
+                    Plan
+                  </h3>
+                  <p className="text-navy-700 dark:text-navy-300 font-body bg-clinical-50 dark:bg-navy-800 p-4 rounded-lg whitespace-pre-wrap">
+                    {selectedEncounter.plan}
+                  </p>
+                </div>
+              )}
+
+              {/* Empty state if no SOAP data */}
+              {!selectedEncounter.subjective && !selectedEncounter.objective && !selectedEncounter.assessment && !selectedEncounter.plan && (
+                <div className="text-center py-8 text-navy-500 dark:text-navy-400">
+                  <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <p className="font-body">No clinical notes recorded for this visit</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end p-4 border-t border-clinical-200 dark:border-navy-700 bg-clinical-50 dark:bg-navy-800/50">
+              <button
+                onClick={() => setShowEncounterModal(false)}
+                className="btn-secondary"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

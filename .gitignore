@@ -42,3 +42,4 @@ packages/api/uploads/
 
 # Tesseract trained data (large file)
 *.traineddata
+.playwright-mcp/

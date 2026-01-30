@@ -774,20 +774,80 @@ export default function SecretaryDashboard() {
 }
 
 function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
-  const colorClasses: Record<string, string> = {
-    navy: 'bg-navy-100 dark:bg-navy-800 text-navy-700 dark:text-navy-300',
-    amber: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
-    blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
-    teal: 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400',
-    coral: 'bg-coral-100 dark:bg-coral-900/30 text-coral-700 dark:text-coral-400',
+  const colorClasses: Record<string, { bg: string; text: string; icon: string; badge: string }> = {
+    navy: {
+      bg: 'bg-navy-50 dark:bg-navy-800/50',
+      text: 'text-navy-700 dark:text-navy-300',
+      icon: 'text-navy-400 dark:text-navy-500',
+      badge: 'bg-navy-100 dark:bg-navy-700 text-navy-600 dark:text-navy-300',
+    },
+    amber: {
+      bg: 'bg-amber-50 dark:bg-amber-900/20',
+      text: 'text-amber-700 dark:text-amber-400',
+      icon: 'text-amber-500',
+      badge: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300',
+    },
+    blue: {
+      bg: 'bg-blue-50 dark:bg-blue-900/20',
+      text: 'text-blue-700 dark:text-blue-400',
+      icon: 'text-blue-500',
+      badge: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300',
+    },
+    teal: {
+      bg: 'bg-teal-50 dark:bg-teal-900/20',
+      text: 'text-teal-700 dark:text-teal-400',
+      icon: 'text-teal-500',
+      badge: 'bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300',
+    },
+    coral: {
+      bg: 'bg-coral-50 dark:bg-coral-900/20',
+      text: 'text-coral-700 dark:text-coral-400',
+      icon: 'text-coral-500',
+      badge: 'bg-coral-100 dark:bg-coral-900/40 text-coral-700 dark:text-coral-300',
+    },
   };
 
+  const icons: Record<string, JSX.Element> = {
+    navy: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+      </svg>
+    ),
+    amber: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+    blue: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+      </svg>
+    ),
+    teal: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+      </svg>
+    ),
+    coral: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+      </svg>
+    ),
+  };
+
+  const styles = colorClasses[color] || colorClasses.navy;
+
   return (
-    <div className="card-clinical p-4">
-      <p className="text-sm text-navy-500 dark:text-navy-400 font-body">{label}</p>
-      <p className={`text-2xl font-bold font-display mt-1 ${colorClasses[color]?.split(' ')[2] || 'text-navy-900 dark:text-navy-100'}`}>
-        {value}
-      </p>
+    <div className={`card-clinical p-4 ${styles.bg} border-0`}>
+      <div className="flex items-center gap-2 mb-2">
+        <span className={styles.icon}>{icons[color]}</span>
+        <p className="text-sm text-navy-500 dark:text-navy-400 font-body">{label}</p>
+      </div>
+      <div className="flex items-baseline gap-2">
+        <span className={`inline-flex items-center justify-center min-w-[2.5rem] px-3 py-1 rounded-full text-xl font-bold font-display ${styles.badge}`}>
+          {value}
+        </span>
+      </div>
     </div>
   );
 }

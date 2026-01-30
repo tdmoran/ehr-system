@@ -423,12 +423,19 @@ export default function Calendar() {
                   return (
                     <>
                       <div className="flex items-center justify-between mb-2">
-                        <div className={`text-sm font-medium ${
-                          isCurrentDay
-                            ? 'w-7 h-7 rounded-full bg-teal-600 text-white flex items-center justify-center'
-                            : 'text-navy-700 dark:text-navy-300'
-                        }`}>
-                          {date.getDate()}
+                        <div className="flex flex-col items-start gap-0.5">
+                          {isCurrentDay && (
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
+                              Today
+                            </span>
+                          )}
+                          <div className={`text-sm font-medium ${
+                            isCurrentDay
+                              ? 'w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center ring-4 ring-teal-400/30 dark:ring-teal-500/30 shadow-lg shadow-teal-500/20'
+                              : 'text-navy-700 dark:text-navy-300'
+                          }`}>
+                            {date.getDate()}
+                          </div>
                         </div>
                         {onCall && (
                           <span className="text-xs px-1.5 py-0.5 rounded bg-violet-500 text-white font-medium">

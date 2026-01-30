@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { usePatients } from '../hooks/usePatients';
 import { api, CreatePatientInput } from '../api/client';
 import QuickActions from '../components/QuickActions';
+import { SkeletonTableRows } from '../components/Skeleton';
+import { useToast } from '../context/ToastContext';
 
 const initialFormData: CreatePatientInput = {
   mrn: '',
@@ -28,6 +30,7 @@ function generateMRN(): string {
 
 export default function Patients() {
   const { patients, loading, search, setSearch, refetch } = usePatients();
+  const { addToast } = useToast();
   const [showNewPatient, setShowNewPatient] = useState(false);
   const [formData, setFormData] = useState<CreatePatientInput>(initialFormData);
   const [formError, setFormError] = useState('');
@@ -73,6 +76,7 @@ export default function Patients() {
     if (data) {
       handleCloseModal();
       refetch();
+      addToast(`Patient ${formData.firstName} ${formData.lastName} created successfully`, 'success');
     }
     setSubmitting(false);
   };
@@ -141,11 +145,10 @@ export default function Patients() {
           <div className="col-span-2">Last Visit</div>
         </div>
 
-        {/* Loading State */}
+        {/* Loading State - Skeleton Rows */}
         {loading && (
-          <div className="p-12 flex flex-col items-center justify-center">
-            <div className="w-10 h-10 border-3 border-teal-500 border-t-transparent rounded-full animate-spin" />
-            <p className="mt-4 text-navy-500 font-body">Loading patients...</p>
+          <div className="divide-y divide-clinical-100 dark:divide-navy-800">
+            <SkeletonTableRows count={8} />
           </div>
         )}
 
@@ -171,7 +174,7 @@ export default function Patients() {
               <Link
                 key={patient.id}
                 to={`/patients/${patient.id}`}
-                className={`block md:grid md:grid-cols-12 gap-4 px-6 py-4 hover:bg-clinical-50 transition-colors animate-slide-up stagger-${Math.min(index + 1, 5)}`}
+                className={`block md:grid md:grid-cols-12 gap-4 px-6 py-4 border-l-4 border-l-transparent hover:border-l-teal-500 hover:bg-clinical-50 dark:hover:bg-navy-800/50 hover:shadow-clinical transition-all animate-slide-up stagger-${Math.min(index + 1, 5)}`}
                 style={{ animationFillMode: 'backwards' }}
               >
                 {/* Patient Name - Always visible */}

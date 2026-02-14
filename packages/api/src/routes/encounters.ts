@@ -4,6 +4,7 @@ import * as encounterService from '../services/encounter.service.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { logAudit } from '../middleware/audit.js';
+import { asyncHandler, NotFoundError, BadRequestError, ForbiddenError } from '../errors/index.js';
 
 const router = Router();
 
@@ -20,123 +21,83 @@ const createEncounterSchema = z.object({
   plan: z.string().optional(),
 });
 
-router.get('/patient/:patientId', async (req, res) => {
-  try {
-    const encounters = await encounterService.findByPatientId(req.params.patientId);
+router.get('/patient/:patientId', asyncHandler(async (req, res) => {
+  const encounters = await encounterService.findByPatientId(req.params.patientId);
 
-    await logAudit(req, {
-      action: 'view',
-      resourceType: 'encounter',
-      patientId: req.params.patientId,
-      details: { count: encounters.length },
-    });
+  await logAudit(req, {
+    action: 'view',
+    resourceType: 'encounter',
+    patientId: req.params.patientId,
+    details: { count: encounters.length },
+  });
 
-    res.json({ encounters });
-  } catch (error) {
-    console.error('Get encounters error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  res.json({ encounters });
+}));
 
-router.get('/:id', async (req, res) => {
-  try {
-    const encounter = await encounterService.findById(req.params.id);
+router.get('/:id', authorize('provider', 'nurse', 'admin'), asyncHandler(async (req, res) => {
+  const encounter = await encounterService.findById(req.params.id);
+  if (!encounter) throw new NotFoundError('Encounter not found');
 
-    if (!encounter) {
-      return res.status(404).json({ error: 'Encounter not found' });
-    }
+  await logAudit(req, {
+    action: 'view',
+    resourceType: 'encounter',
+    resourceId: encounter.id,
+    patientId: encounter.patientId,
+  });
 
-    await logAudit(req, {
-      action: 'view',
-      resourceType: 'encounter',
-      resourceId: encounter.id,
-      patientId: encounter.patientId,
-    });
+  res.json({ encounter });
+}));
 
-    res.json({ encounter });
-  } catch (error) {
-    console.error('Get encounter error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+router.post('/', authorize('provider', 'nurse'), validate(createEncounterSchema), asyncHandler(async (req, res) => {
+  const encounter = await encounterService.create({
+    ...req.body,
+    providerId: req.body.providerId || req.user!.id,
+  });
 
-router.post('/', authorize('provider', 'nurse'), validate(createEncounterSchema), async (req, res) => {
-  try {
-    const encounter = await encounterService.create({
-      ...req.body,
-      providerId: req.body.providerId || req.user!.id,
-    });
+  await logAudit(req, {
+    action: 'create',
+    resourceType: 'encounter',
+    resourceId: encounter.id,
+    patientId: encounter.patientId,
+  });
 
-    await logAudit(req, {
-      action: 'create',
-      resourceType: 'encounter',
-      resourceId: encounter.id,
-      patientId: encounter.patientId,
-    });
+  res.status(201).json({ encounter });
+}));
 
-    res.status(201).json({ encounter });
-  } catch (error) {
-    console.error('Create encounter error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+router.put('/:id', authorize('provider', 'nurse'), validate(createEncounterSchema.partial()), asyncHandler(async (req, res) => {
+  const existing = await encounterService.findById(req.params.id);
+  if (!existing) throw new NotFoundError('Encounter not found');
+  if (existing.status === 'signed') throw new BadRequestError('Cannot modify a signed encounter');
 
-router.put('/:id', authorize('provider', 'nurse'), validate(createEncounterSchema.partial()), async (req, res) => {
-  try {
-    const existing = await encounterService.findById(req.params.id);
+  const encounter = await encounterService.update(req.params.id, req.body);
 
-    if (!existing) {
-      return res.status(404).json({ error: 'Encounter not found' });
-    }
+  await logAudit(req, {
+    action: 'update',
+    resourceType: 'encounter',
+    resourceId: req.params.id,
+    patientId: existing.patientId,
+    details: { updatedFields: Object.keys(req.body) },
+  });
 
-    if (existing.status === 'signed') {
-      return res.status(400).json({ error: 'Cannot modify a signed encounter' });
-    }
+  res.json({ encounter });
+}));
 
-    const encounter = await encounterService.update(req.params.id, req.body);
+router.post('/:id/sign', authorize('provider'), asyncHandler(async (req, res) => {
+  const existing = await encounterService.findById(req.params.id);
+  if (!existing) throw new NotFoundError('Encounter not found');
+  if (existing.providerId !== req.user!.id) throw new ForbiddenError('Only the encounter provider can sign');
 
-    await logAudit(req, {
-      action: 'update',
-      resourceType: 'encounter',
-      resourceId: req.params.id,
-      patientId: existing.patientId,
-      details: { updatedFields: Object.keys(req.body) },
-    });
+  const encounter = await encounterService.sign(req.params.id);
 
-    res.json({ encounter });
-  } catch (error) {
-    console.error('Update encounter error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  await logAudit(req, {
+    action: 'update',
+    resourceType: 'encounter',
+    resourceId: req.params.id,
+    patientId: existing.patientId,
+    details: { action: 'signed' },
+  });
 
-router.post('/:id/sign', authorize('provider'), async (req, res) => {
-  try {
-    const existing = await encounterService.findById(req.params.id);
-
-    if (!existing) {
-      return res.status(404).json({ error: 'Encounter not found' });
-    }
-
-    if (existing.providerId !== req.user!.id) {
-      return res.status(403).json({ error: 'Only the encounter provider can sign' });
-    }
-
-    const encounter = await encounterService.sign(req.params.id);
-
-    await logAudit(req, {
-      action: 'update',
-      resourceType: 'encounter',
-      resourceId: req.params.id,
-      patientId: existing.patientId,
-      details: { action: 'signed' },
-    });
-
-    res.json({ encounter });
-  } catch (error) {
-    console.error('Sign encounter error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  res.json({ encounter });
+}));
 
 export default router;

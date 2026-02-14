@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto';
 import * as documentService from '../services/document.service.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { logAudit } from '../middleware/audit.js';
+import { asyncHandler, NotFoundError, BadRequestError } from '../errors/index.js';
 
 const router = Router();
 
@@ -47,143 +48,106 @@ const upload = multer({
 router.use(authenticate);
 
 // Get all documents (with optional filters)
-router.get('/', async (req, res) => {
-  try {
-    const documents = await documentService.findAll();
+router.get('/', authorize('provider', 'nurse', 'admin', 'secretary'), asyncHandler(async (req, res) => {
+  const documents = await documentService.findAll();
 
-    await logAudit(req, {
-      action: 'view',
-      resourceType: 'document',
-      details: { count: documents.length },
-    });
+  await logAudit(req, {
+    action: 'view',
+    resourceType: 'document',
+    details: { count: documents.length },
+  });
 
-    res.json({ documents });
-  } catch (error) {
-    console.error('Get all documents error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  res.json({ documents });
+}));
 
 // Get documents for a patient
-router.get('/patient/:patientId', async (req, res) => {
-  try {
-    const documents = await documentService.findByPatientId(req.params.patientId);
+router.get('/patient/:patientId', asyncHandler(async (req, res) => {
+  const documents = await documentService.findByPatientId(req.params.patientId);
 
-    await logAudit(req, {
-      action: 'view',
-      resourceType: 'document',
-      patientId: req.params.patientId,
-      details: { count: documents.length },
-    });
+  await logAudit(req, {
+    action: 'view',
+    resourceType: 'document',
+    patientId: req.params.patientId,
+    details: { count: documents.length },
+  });
 
-    res.json({ documents });
-  } catch (error) {
-    console.error('Get documents error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  res.json({ documents });
+}));
 
 // Upload a document
 router.post(
   '/patient/:patientId',
   authorize('provider', 'nurse', 'admin', 'secretary'),
   upload.single('file'),
-  async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded' });
-      }
+  asyncHandler(async (req, res) => {
+    if (!req.file) throw new BadRequestError('No file uploaded');
 
-      const document = await documentService.create({
-        patientId: req.params.patientId,
-        uploadedBy: req.user!.id,
-        filename: req.file.filename,
-        originalName: req.file.originalname,
-        mimeType: req.file.mimetype,
-        fileSize: req.file.size,
-        description: req.body.description,
-        category: req.body.category || 'scanned_document',
-      });
+    const document = await documentService.create({
+      patientId: req.params.patientId,
+      uploadedBy: req.user!.id,
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+      mimeType: req.file.mimetype,
+      fileSize: req.file.size,
+      description: req.body.description,
+      category: req.body.category || 'scanned_document',
+    });
 
-      await logAudit(req, {
-        action: 'create',
-        resourceType: 'document',
-        resourceId: document.id,
-        patientId: req.params.patientId,
-        details: { filename: document.originalName },
-      });
+    await logAudit(req, {
+      action: 'create',
+      resourceType: 'document',
+      resourceId: document.id,
+      patientId: req.params.patientId,
+      details: { filename: document.originalName },
+    });
 
-      res.status(201).json({ document });
-    } catch (error) {
-      console.error('Upload document error:', error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  }
+    res.status(201).json({ document });
+  })
 );
 
 // Download a document
-router.get('/:id/download', async (req, res) => {
-  try {
-    const document = await documentService.findById(req.params.id);
+router.get('/:id/download', asyncHandler(async (req, res) => {
+  const document = await documentService.findById(req.params.id);
+  if (!document) throw new NotFoundError('Document not found');
 
-    if (!document) {
-      return res.status(404).json({ error: 'Document not found' });
-    }
+  const filePath = path.join(uploadsDir, document.filename);
+  if (!fs.existsSync(filePath)) throw new NotFoundError('File not found');
 
-    const filePath = path.join(uploadsDir, document.filename);
+  await logAudit(req, {
+    action: 'view',
+    resourceType: 'document',
+    resourceId: document.id,
+    patientId: document.patientId,
+    details: { filename: document.originalName },
+  });
 
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'File not found' });
-    }
-
-    await logAudit(req, {
-      action: 'view',
-      resourceType: 'document',
-      resourceId: document.id,
-      patientId: document.patientId,
-      details: { filename: document.originalName },
-    });
-
-    res.setHeader('Content-Type', document.mimeType);
-    res.setHeader('Content-Disposition', `inline; filename="${document.originalName}"`);
-    res.sendFile(filePath);
-  } catch (error) {
-    console.error('Download document error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  res.setHeader('Content-Type', document.mimeType);
+  res.setHeader('Content-Disposition', `inline; filename="${document.originalName}"`);
+  res.sendFile(filePath);
+}));
 
 // Delete a document
-router.delete('/:id', authorize('provider', 'admin'), async (req, res) => {
-  try {
-    const document = await documentService.findById(req.params.id);
+router.delete('/:id', authorize('provider', 'admin'), asyncHandler(async (req, res) => {
+  const document = await documentService.findById(req.params.id);
+  if (!document) throw new NotFoundError('Document not found');
 
-    if (!document) {
-      return res.status(404).json({ error: 'Document not found' });
-    }
+  // Delete DB record first, then file (safer ordering)
+  await documentService.remove(req.params.id);
 
-    // Delete the file
-    const filePath = path.join(uploadsDir, document.filename);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
-
-    // Delete the database record
-    await documentService.remove(req.params.id);
-
-    await logAudit(req, {
-      action: 'delete',
-      resourceType: 'document',
-      resourceId: req.params.id,
-      patientId: document.patientId,
-      details: { filename: document.originalName },
-    });
-
-    res.json({ message: 'Document deleted' });
-  } catch (error) {
-    console.error('Delete document error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+  const filePath = path.join(uploadsDir, document.filename);
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
   }
-});
+
+  await logAudit(req, {
+    action: 'delete',
+    resourceType: 'document',
+    resourceId: req.params.id,
+    patientId: document.patientId,
+    details: { filename: document.originalName },
+  });
+
+  res.json({ message: 'Document deleted' });
+}));
 
 export default router;

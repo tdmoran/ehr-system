@@ -1,4 +1,4 @@
-import { query } from '../db/index.js';
+import { query, withTransaction } from '../db/index.js';
 import { processDocument } from './ocr.service.js';
 import { extractPatientData, extractReferralData } from './field-extractor.service.js';
 import { extractWithAI } from './ai-extractor.service.js';
@@ -463,26 +463,36 @@ export async function processReferralScan(
     // Try to find a matching patient
     const matchedPatient = await findMatchingPatient(patientFirstName || null, patientLastName || null, patientDob || null);
 
-    // Update OCR result with extracted data
-    const updatedResult = await updateReferralOcrResult(ocrResult.id, {
-      rawText: processingResult.text,
-      confidenceScore,
-      extractedData,
-      patientFirstName,
-      patientLastName,
-      patientDob,
-      patientPhone,
-      referringPhysician,
-      referringFacility,
-      reasonForReferral,
-      matchedPatientId: matchedPatient?.id,
-      matchConfidence: matchedPatient?.matchScore,
+    // Wrap final DB writes in a transaction for atomicity
+    const updatedResult = await withTransaction(async (client) => {
+      // Update OCR result with extracted data
+      const ocrUpdateResult = await client.query<Record<string, unknown>>(
+        `UPDATE referral_ocr_results SET
+          raw_text = $1, confidence_score = $2, extracted_data = $3,
+          patient_first_name = $4, patient_last_name = $5, patient_dob = $6, patient_phone = $7,
+          referring_physician = $8, referring_facility = $9, reason_for_referral = $10,
+          matched_patient_id = $11, match_confidence = $12,
+          processed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $13 RETURNING *`,
+        [
+          processingResult.text, confidenceScore, JSON.stringify(extractedData),
+          patientFirstName || null, patientLastName || null, patientDob || null, patientPhone || null,
+          referringPhysician || null, referringFacility || null, reasonForReferral || null,
+          matchedPatient?.id || null, matchedPatient?.matchScore || null,
+          ocrResult.id,
+        ]
+      );
+
+      // Update scan status to completed
+      await client.query(
+        `UPDATE referral_scans SET processing_status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        [referralScanId]
+      );
+
+      return mapReferralOcrResultRow(ocrUpdateResult.rows[0]);
     });
 
-    // Update scan status to completed
-    await updateReferralScanStatus(referralScanId, 'completed');
-
-    return updatedResult!;
+    return updatedResult;
   } catch (error) {
     // Update scan status to failed
     await updateReferralScanStatus(referralScanId, 'failed');

@@ -11,7 +11,11 @@ router.use(authenticate);
 
 const createTaskSchema = z.object({
   patientId: z.string().uuid(),
-  taskText: z.string().min(1),
+  taskText: z.string().min(1).max(2000),
+});
+
+const updateTaskSchema = z.object({
+  completed: z.boolean(),
 });
 
 // Get all tasks (optionally filter by completed status)
@@ -106,7 +110,7 @@ router.post('/', authorize('provider', 'nurse', 'admin', 'secretary'), validate(
 }));
 
 // Update task (mark complete/incomplete)
-router.patch('/:id', asyncHandler(async (req, res) => {
+router.patch('/:id', validate(updateTaskSchema), asyncHandler(async (req, res) => {
   const { completed } = req.body;
 
   const result = await pool.query(

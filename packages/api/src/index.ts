@@ -30,7 +30,18 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
+
+// Request timeout middleware
+app.use((req, res, next) => {
+  req.setTimeout(config.requestTimeoutMs);
+  res.setTimeout(config.requestTimeoutMs, () => {
+    if (!res.headersSent) {
+      res.status(408).json({ error: 'Request timeout' });
+    }
+  });
+  next();
+});
 
 app.use((req, res, next) => {
   logger.info(`${req.method} ${req.path}`, {

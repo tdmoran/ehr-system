@@ -12,9 +12,9 @@ const isCloudDB = config.database.connectionString.includes('supabase.co') ||
 export const pool = new Pool({
   connectionString: config.database.connectionString,
   ssl: isCloudDB ? { rejectUnauthorized: true } : false,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+  max: config.database.maxConnections,
+  idleTimeoutMillis: config.database.idleTimeoutMs,
+  connectionTimeoutMillis: config.database.connectionTimeoutMs,
 });
 
 // Set search_path to include public schema (needed for Neon)

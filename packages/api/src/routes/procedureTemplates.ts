@@ -2,6 +2,7 @@ import { Router } from 'express';
 import path from 'path';
 import fs from 'fs';
 import { authenticate } from '../middleware/auth.js';
+import { asyncHandler, NotFoundError } from '../errors/index.js';
 
 const router = Router();
 
@@ -57,66 +58,39 @@ const templates: ProcedureTemplate[] = [
 router.use(authenticate);
 
 // Get list of all procedure templates
-router.get('/', async (_req, res) => {
-  try {
-    res.json({ templates });
-  } catch (error) {
-    console.error('Get procedure templates error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+router.get('/', asyncHandler(async (_req, res) => {
+  res.json({ templates });
+}));
 
 // Get a specific procedure template content
-router.get('/:id', async (req, res) => {
-  try {
-    const template = templates.find((t) => t.id === req.params.id);
+router.get('/:id', asyncHandler(async (req, res) => {
+  const template = templates.find((t) => t.id === req.params.id);
+  if (!template) throw new NotFoundError('Template not found');
 
-    if (!template) {
-      return res.status(404).json({ error: 'Template not found' });
-    }
+  const filePath = path.join(templatesDir, template.filename);
+  if (!fs.existsSync(filePath)) throw new NotFoundError('Template file not found');
 
-    const filePath = path.join(templatesDir, template.filename);
+  const content = fs.readFileSync(filePath, 'utf-8');
 
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'Template file not found' });
-    }
-
-    const content = fs.readFileSync(filePath, 'utf-8');
-
-    res.json({
-      template: {
-        ...template,
-        content,
-      },
-    });
-  } catch (error) {
-    console.error('Get procedure template error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  res.json({
+    template: {
+      ...template,
+      content,
+    },
+  });
+}));
 
 // Download template as markdown file
-router.get('/:id/download', async (req, res) => {
-  try {
-    const template = templates.find((t) => t.id === req.params.id);
+router.get('/:id/download', asyncHandler(async (req, res) => {
+  const template = templates.find((t) => t.id === req.params.id);
+  if (!template) throw new NotFoundError('Template not found');
 
-    if (!template) {
-      return res.status(404).json({ error: 'Template not found' });
-    }
+  const filePath = path.join(templatesDir, template.filename);
+  if (!fs.existsSync(filePath)) throw new NotFoundError('Template file not found');
 
-    const filePath = path.join(templatesDir, template.filename);
-
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'Template file not found' });
-    }
-
-    res.setHeader('Content-Type', 'text/markdown');
-    res.setHeader('Content-Disposition', `attachment; filename="${template.filename}"`);
-    res.sendFile(filePath);
-  } catch (error) {
-    console.error('Download procedure template error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  res.setHeader('Content-Type', 'text/markdown');
+  res.setHeader('Content-Disposition', `attachment; filename="${template.filename}"`);
+  res.sendFile(filePath);
+}));
 
 export default router;

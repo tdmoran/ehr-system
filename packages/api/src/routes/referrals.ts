@@ -9,6 +9,7 @@ import * as patientService from '../services/patient.service.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { logAudit } from '../middleware/audit.js';
+import { asyncHandler, NotFoundError, BadRequestError } from '../errors/index.js';
 
 const router = Router();
 
@@ -59,91 +60,72 @@ router.post(
   '/scan',
   authorize('secretary', 'admin', 'nurse'),
   upload.array('files', 10),
-  async (req, res) => {
-    try {
-      const files = req.files as Express.Multer.File[];
+  asyncHandler(async (req, res) => {
+    const files = req.files as Express.Multer.File[];
 
-      if (!files || files.length === 0) {
-        return res.status(400).json({ error: 'No files uploaded' });
-      }
-
-      const results: { id: string; filename: string; status: string }[] = [];
-
-      // Create referral scans for each file
-      for (const file of files) {
-        const scan = await referralService.createReferralScan({
-          uploadedBy: req.user!.id,
-          filename: file.filename,
-          originalName: file.originalname,
-          mimeType: file.mimetype,
-          fileSize: file.size,
-        });
-
-        results.push({
-          id: scan.id,
-          filename: file.originalname,
-          status: 'pending',
-        });
-
-        // Process OCR asynchronously
-        const filePath = path.join(uploadsDir, file.filename);
-        referralService.processReferralScan(scan.id, filePath, file.mimetype).catch((error) => {
-          console.error(`Failed to process referral scan ${scan.id}:`, error);
-        });
-      }
-
-      await logAudit(req, {
-        action: 'create',
-        resourceType: 'referral_scan',
-        details: { count: files.length, filenames: files.map((f) => f.originalname) },
-      });
-
-      res.status(202).json({
-        message: `${files.length} referral letter(s) uploaded for processing`,
-        referrals: results,
-      });
-    } catch (error) {
-      console.error('Upload referral letters error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+    if (!files || files.length === 0) {
+      throw new BadRequestError('No files uploaded');
     }
-  }
+
+    const results: { id: string; filename: string; status: string }[] = [];
+
+    // Create referral scans for each file
+    for (const file of files) {
+      const scan = await referralService.createReferralScan({
+        uploadedBy: req.user!.id,
+        filename: file.filename,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        fileSize: file.size,
+      });
+
+      results.push({
+        id: scan.id,
+        filename: file.originalname,
+        status: 'pending',
+      });
+
+      // Process OCR asynchronously
+      const filePath = path.join(uploadsDir, file.filename);
+      referralService.processReferralScan(scan.id, filePath, file.mimetype).catch((error) => {
+        console.error(`Failed to process referral scan ${scan.id}:`, error);
+      });
+    }
+
+    await logAudit(req, {
+      action: 'create',
+      resourceType: 'referral_scan',
+      details: { count: files.length, filenames: files.map((f) => f.originalname) },
+    });
+
+    res.status(202).json({
+      message: `${files.length} referral letter(s) uploaded for processing`,
+      referrals: results,
+    });
+  })
 );
 
 // Get all pending referral scans for review
-router.get('/pending', authorize('secretary', 'admin', 'nurse', 'provider'), async (req, res) => {
-  try {
-    const referrals = await referralService.findPendingReferrals();
-
-    res.json({ referrals });
-  } catch (error) {
-    console.error('Get pending referrals error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+router.get('/pending', authorize('secretary', 'admin', 'nurse', 'provider'), asyncHandler(async (req, res) => {
+  const referrals = await referralService.findPendingReferrals();
+  res.json({ referrals });
+}));
 
 // Get single referral scan with OCR data
-router.get('/:id', authorize('secretary', 'admin', 'nurse', 'provider'), async (req, res) => {
-  try {
-    const ocrResult = await referralService.findOcrResultById(req.params.id);
+router.get('/:id', authorize('secretary', 'admin', 'nurse', 'provider'), asyncHandler(async (req, res) => {
+  const ocrResult = await referralService.findOcrResultById(req.params.id);
+  if (!ocrResult) throw new NotFoundError('Referral not found');
 
-    if (!ocrResult) {
-      return res.status(404).json({ error: 'Referral not found' });
-    }
+  const scan = await referralService.findReferralScanById(ocrResult.referralScanId);
 
-    const scan = await referralService.findReferralScanById(ocrResult.referralScanId);
+  await logAudit(req, {
+    action: 'view',
+    resourceType: 'referral_scan',
+    resourceId: req.params.id,
+  });
 
-    await logAudit(req, {
-      action: 'view',
-      resourceType: 'referral_scan',
-      resourceId: req.params.id,
-    });
-
-    res.json({ referral: { ...ocrResult, scan } });
-  } catch (error) {
-    console.error('Get referral error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  res.json({ referral: { ...ocrResult, scan } });
+}));
 
 // Create new patient from referral
 const createPatientSchema = z.object({
@@ -165,58 +147,47 @@ router.post(
   '/:id/create-patient',
   authorize('secretary', 'admin', 'nurse'),
   validate(createPatientSchema),
-  async (req, res) => {
-    try {
-      const ocrResult = await referralService.findOcrResultById(req.params.id);
+  asyncHandler(async (req, res) => {
+    const ocrResult = await referralService.findOcrResultById(req.params.id);
+    if (!ocrResult) throw new NotFoundError('Referral not found');
+    if (ocrResult.resolutionStatus !== 'pending') throw new BadRequestError('Referral has already been resolved');
 
-      if (!ocrResult) {
-        return res.status(404).json({ error: 'Referral not found' });
-      }
+    // Generate a unique MRN
+    const mrn = await referralService.generateMrn();
 
-      if (ocrResult.resolutionStatus !== 'pending') {
-        return res.status(400).json({ error: 'Referral has already been resolved' });
-      }
+    // Create the patient
+    const patient = await patientService.create({
+      mrn,
+      firstName: req.body.firstName,
+      lastName: req.body.lastName,
+      dateOfBirth: req.body.dateOfBirth,
+      gender: req.body.gender,
+      phone: req.body.phone,
+      email: req.body.email || undefined,
+      addressLine1: req.body.addressLine1,
+      city: req.body.city,
+      state: req.body.state,
+      zip: req.body.zip,
+      insuranceProvider: req.body.insuranceProvider,
+      insuranceId: req.body.insuranceId,
+    });
 
-      // Generate a unique MRN
-      const mrn = await referralService.generateMrn();
+    // Mark referral as resolved with new patient
+    await referralService.resolveAsCreated(ocrResult.id, patient.id, req.user!.id);
 
-      // Create the patient
-      const patient = await patientService.create({
-        mrn,
-        firstName: req.body.firstName,
-        lastName: req.body.lastName,
-        dateOfBirth: req.body.dateOfBirth,
-        gender: req.body.gender,
-        phone: req.body.phone,
-        email: req.body.email || undefined,
-        addressLine1: req.body.addressLine1,
-        city: req.body.city,
-        state: req.body.state,
-        zip: req.body.zip,
-        insuranceProvider: req.body.insuranceProvider,
-        insuranceId: req.body.insuranceId,
-      });
+    await logAudit(req, {
+      action: 'create',
+      resourceType: 'patient',
+      resourceId: patient.id,
+      patientId: patient.id,
+      details: { fromReferral: ocrResult.id },
+    });
 
-      // Mark referral as resolved with new patient
-      await referralService.resolveAsCreated(ocrResult.id, patient.id, req.user!.id);
-
-      await logAudit(req, {
-        action: 'create',
-        resourceType: 'patient',
-        resourceId: patient.id,
-        patientId: patient.id,
-        details: { fromReferral: ocrResult.id },
-      });
-
-      res.status(201).json({
-        message: 'Patient created from referral',
-        patient,
-      });
-    } catch (error) {
-      console.error('Create patient from referral error:', error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  }
+    res.status(201).json({
+      message: 'Patient created from referral',
+      patient,
+    });
+  })
 );
 
 // Add referral info to existing patient
@@ -231,113 +202,76 @@ router.post(
   '/:id/add-to-patient',
   authorize('secretary', 'admin', 'nurse'),
   validate(addToPatientSchema),
-  async (req, res) => {
-    try {
-      const ocrResult = await referralService.findOcrResultById(req.params.id);
-
-      if (!ocrResult) {
-        return res.status(404).json({ error: 'Referral not found' });
-      }
-
-      if (ocrResult.resolutionStatus !== 'pending') {
-        return res.status(400).json({ error: 'Referral has already been resolved' });
-      }
-
-      // Verify patient exists
-      const patient = await patientService.findById(req.body.patientId);
-      if (!patient) {
-        return res.status(404).json({ error: 'Patient not found' });
-      }
-
-      // Mark referral as resolved and added to existing patient
-      await referralService.resolveAsAdded(ocrResult.id, patient.id, req.user!.id);
-
-      await logAudit(req, {
-        action: 'update',
-        resourceType: 'referral_scan',
-        resourceId: ocrResult.id,
-        patientId: patient.id,
-        details: {
-          action: 'added_to_existing_patient',
-          referringPhysician: req.body.referringPhysician,
-          referringFacility: req.body.referringFacility,
-        },
-      });
-
-      res.json({
-        message: 'Referral added to existing patient',
-        patient,
-      });
-    } catch (error) {
-      console.error('Add referral to patient error:', error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  }
-);
-
-// Skip/dismiss a referral
-router.post('/:id/skip', authorize('secretary', 'admin', 'nurse'), async (req, res) => {
-  try {
+  asyncHandler(async (req, res) => {
     const ocrResult = await referralService.findOcrResultById(req.params.id);
+    if (!ocrResult) throw new NotFoundError('Referral not found');
+    if (ocrResult.resolutionStatus !== 'pending') throw new BadRequestError('Referral has already been resolved');
 
-    if (!ocrResult) {
-      return res.status(404).json({ error: 'Referral not found' });
-    }
+    // Verify patient exists
+    const patient = await patientService.findById(req.body.patientId);
+    if (!patient) throw new NotFoundError('Patient not found');
 
-    if (ocrResult.resolutionStatus !== 'pending') {
-      return res.status(400).json({ error: 'Referral has already been resolved' });
-    }
-
-    await referralService.resolveAsSkipped(ocrResult.id, req.user!.id);
+    // Mark referral as resolved and added to existing patient
+    await referralService.resolveAsAdded(ocrResult.id, patient.id, req.user!.id);
 
     await logAudit(req, {
       action: 'update',
       resourceType: 'referral_scan',
       resourceId: ocrResult.id,
-      details: { action: 'skipped' },
+      patientId: patient.id,
+      details: {
+        action: 'added_to_existing_patient',
+        referringPhysician: req.body.referringPhysician,
+        referringFacility: req.body.referringFacility,
+      },
     });
 
-    res.json({ message: 'Referral skipped' });
-  } catch (error) {
-    console.error('Skip referral error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+    res.json({
+      message: 'Referral added to existing patient',
+      patient,
+    });
+  })
+);
+
+// Skip/dismiss a referral
+router.post('/:id/skip', authorize('secretary', 'admin', 'nurse'), asyncHandler(async (req, res) => {
+  const ocrResult = await referralService.findOcrResultById(req.params.id);
+  if (!ocrResult) throw new NotFoundError('Referral not found');
+  if (ocrResult.resolutionStatus !== 'pending') throw new BadRequestError('Referral has already been resolved');
+
+  await referralService.resolveAsSkipped(ocrResult.id, req.user!.id);
+
+  await logAudit(req, {
+    action: 'update',
+    resourceType: 'referral_scan',
+    resourceId: ocrResult.id,
+    details: { action: 'skipped' },
+  });
+
+  res.json({ message: 'Referral skipped' });
+}));
 
 // Download the original referral scan file
-router.get('/:id/download', authorize('secretary', 'admin', 'nurse', 'provider'), async (req, res) => {
-  try {
-    const ocrResult = await referralService.findOcrResultById(req.params.id);
+router.get('/:id/download', authorize('secretary', 'admin', 'nurse', 'provider'), asyncHandler(async (req, res) => {
+  const ocrResult = await referralService.findOcrResultById(req.params.id);
+  if (!ocrResult) throw new NotFoundError('Referral not found');
 
-    if (!ocrResult) {
-      return res.status(404).json({ error: 'Referral not found' });
-    }
+  const scan = await referralService.findReferralScanById(ocrResult.referralScanId);
+  if (!scan) throw new NotFoundError('Referral scan not found');
 
-    const scan = await referralService.findReferralScanById(ocrResult.referralScanId);
-    if (!scan) {
-      return res.status(404).json({ error: 'Referral scan not found' });
-    }
+  const filePath = path.join(uploadsDir, scan.filename);
+  if (!fs.existsSync(filePath)) throw new NotFoundError('File not found');
 
-    const filePath = path.join(uploadsDir, scan.filename);
+  await logAudit(req, {
+    action: 'view',
+    resourceType: 'referral_scan',
+    resourceId: req.params.id,
+    details: { filename: scan.originalName },
+  });
 
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'File not found' });
-    }
-
-    await logAudit(req, {
-      action: 'view',
-      resourceType: 'referral_scan',
-      resourceId: req.params.id,
-      details: { filename: scan.originalName },
-    });
-
-    res.setHeader('Content-Type', scan.mimeType || 'application/octet-stream');
-    res.setHeader('Content-Disposition', `inline; filename="${scan.originalName}"`);
-    res.sendFile(filePath);
-  } catch (error) {
-    console.error('Download referral error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  res.setHeader('Content-Type', scan.mimeType || 'application/octet-stream');
+  res.setHeader('Content-Disposition', `inline; filename="${scan.originalName}"`);
+  res.sendFile(filePath);
+}));
 
 export default router;

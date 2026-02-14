@@ -4,6 +4,7 @@ import * as patientService from '../services/patient.service.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { logAudit } from '../middleware/audit.js';
+import { asyncHandler, NotFoundError, ConflictError } from '../errors/index.js';
 
 const router = Router();
 
@@ -30,114 +31,75 @@ const createPatientSchema = z.object({
   clinicNotes: z.string().optional(),
 });
 
-router.get('/', async (req, res) => {
-  try {
-    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
-    const offset = parseInt(req.query.offset as string) || 0;
-    const search = req.query.search as string;
+router.get('/', asyncHandler(async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+  const offset = parseInt(req.query.offset as string) || 0;
+  const search = req.query.search as string;
 
-    let patients;
-    if (search) {
-      patients = await patientService.search(search, limit);
-    } else {
-      patients = await patientService.findAll(limit, offset);
-    }
+  const patients = search
+    ? await patientService.search(search, limit)
+    : await patientService.findAll(limit, offset);
 
-    res.json({ patients });
-  } catch (error) {
-    console.error('Get patients error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  res.json({ patients });
+}));
 
-router.get('/:id', async (req, res) => {
-  try {
-    const patient = await patientService.findById(req.params.id);
+router.get('/:id', asyncHandler(async (req, res) => {
+  const patient = await patientService.findById(req.params.id);
+  if (!patient) throw new NotFoundError('Patient not found');
 
-    if (!patient) {
-      return res.status(404).json({ error: 'Patient not found' });
-    }
+  await logAudit(req, {
+    action: 'view',
+    resourceType: 'patient',
+    resourceId: patient.id,
+    patientId: patient.id,
+  });
 
-    await logAudit(req, {
-      action: 'view',
-      resourceType: 'patient',
-      resourceId: patient.id,
-      patientId: patient.id,
-    });
+  res.json({ patient });
+}));
 
-    res.json({ patient });
-  } catch (error) {
-    console.error('Get patient error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+router.post('/', authorize('provider', 'nurse', 'admin'), validate(createPatientSchema), asyncHandler(async (req, res) => {
+  const existingPatient = await patientService.findByMrn(req.body.mrn);
+  if (existingPatient) throw new ConflictError('Patient with this MRN already exists');
 
-router.post('/', authorize('provider', 'nurse', 'admin'), validate(createPatientSchema), async (req, res) => {
-  try {
-    const existingPatient = await patientService.findByMrn(req.body.mrn);
-    if (existingPatient) {
-      return res.status(409).json({ error: 'Patient with this MRN already exists' });
-    }
+  const patient = await patientService.create(req.body);
 
-    const patient = await patientService.create(req.body);
+  await logAudit(req, {
+    action: 'create',
+    resourceType: 'patient',
+    resourceId: patient.id,
+    patientId: patient.id,
+  });
 
-    await logAudit(req, {
-      action: 'create',
-      resourceType: 'patient',
-      resourceId: patient.id,
-      patientId: patient.id,
-    });
+  res.status(201).json({ patient });
+}));
 
-    res.status(201).json({ patient });
-  } catch (error) {
-    console.error('Create patient error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+router.put('/:id', authorize('provider', 'nurse', 'admin'), validate(createPatientSchema.partial()), asyncHandler(async (req, res) => {
+  const patient = await patientService.update(req.params.id, req.body);
+  if (!patient) throw new NotFoundError('Patient not found');
 
-router.put('/:id', authorize('provider', 'nurse', 'admin'), validate(createPatientSchema.partial()), async (req, res) => {
-  try {
-    const patient = await patientService.update(req.params.id, req.body);
+  await logAudit(req, {
+    action: 'update',
+    resourceType: 'patient',
+    resourceId: patient.id,
+    patientId: patient.id,
+    details: { updatedFields: Object.keys(req.body) },
+  });
 
-    if (!patient) {
-      return res.status(404).json({ error: 'Patient not found' });
-    }
+  res.json({ patient });
+}));
 
-    await logAudit(req, {
-      action: 'update',
-      resourceType: 'patient',
-      resourceId: patient.id,
-      patientId: patient.id,
-      details: { updatedFields: Object.keys(req.body) },
-    });
+router.delete('/:id', authorize('admin'), asyncHandler(async (req, res) => {
+  const success = await patientService.deactivate(req.params.id);
+  if (!success) throw new NotFoundError('Patient not found');
 
-    res.json({ patient });
-  } catch (error) {
-    console.error('Update patient error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  await logAudit(req, {
+    action: 'delete',
+    resourceType: 'patient',
+    resourceId: req.params.id,
+    patientId: req.params.id,
+  });
 
-router.delete('/:id', authorize('admin'), async (req, res) => {
-  try {
-    const success = await patientService.deactivate(req.params.id);
-
-    if (!success) {
-      return res.status(404).json({ error: 'Patient not found' });
-    }
-
-    await logAudit(req, {
-      action: 'delete',
-      resourceType: 'patient',
-      resourceId: req.params.id,
-      patientId: req.params.id,
-    });
-
-    res.json({ message: 'Patient deactivated' });
-  } catch (error) {
-    console.error('Delete patient error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  res.json({ message: 'Patient deactivated' });
+}));
 
 export default router;

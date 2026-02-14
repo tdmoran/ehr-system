@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { pool } from '../db/index.js';
 import { authenticate, authorize } from '../middleware/auth.js';
-import { validate } from '../middleware/validate.js';
+import { validate, validateQuery } from '../middleware/validate.js';
 import { asyncHandler, NotFoundError } from '../errors/index.js';
 import { AuthUser } from '../middleware/auth.js';
 
@@ -10,17 +10,24 @@ const router = Router();
 
 router.use(authenticate);
 
-// Event schemas
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+const dateRangeQuery = z.object({
+  startDate: z.string().regex(dateRegex, 'startDate must be YYYY-MM-DD'),
+  endDate: z.string().regex(dateRegex, 'endDate must be YYYY-MM-DD'),
+  providerId: z.string().uuid().optional(),
+});
+
 const createEventSchema = z.object({
-  eventDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  eventDate: z.string().regex(dateRegex),
   title: z.string().min(1).max(255),
-  notes: z.string().optional(),
+  notes: z.string().max(2000).optional(),
 });
 
 const createOnCallSchema = z.object({
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  notes: z.string().optional(),
+  startDate: z.string().regex(dateRegex),
+  endDate: z.string().regex(dateRegex),
+  notes: z.string().max(2000).optional(),
 });
 
 function getProviderId(user: AuthUser): string {
@@ -28,10 +35,9 @@ function getProviderId(user: AuthUser): string {
 }
 
 // Get events for a date range
-router.get('/events', authorize('provider', 'nurse', 'admin', 'secretary'), asyncHandler(async (req, res) => {
-  const startDate = req.query.startDate as string;
-  const endDate = req.query.endDate as string;
-  const providerId = req.query.providerId as string || getProviderId(req.user!);
+router.get('/events', authorize('provider', 'nurse', 'admin', 'secretary'), validateQuery(dateRangeQuery), asyncHandler(async (req, res) => {
+  const { startDate, endDate } = req.query as z.infer<typeof dateRangeQuery>;
+  const providerId = (req.query.providerId as string) || getProviderId(req.user!);
 
   const result = await pool.query(
     `SELECT id, provider_id, event_date, title, notes, created_at
@@ -86,10 +92,9 @@ router.delete('/events/:id', asyncHandler(async (req, res) => {
 }));
 
 // Get on-call periods for a date range
-router.get('/oncall', asyncHandler(async (req, res) => {
-  const startDate = req.query.startDate as string;
-  const endDate = req.query.endDate as string;
-  const providerId = req.query.providerId as string || getProviderId(req.user!);
+router.get('/oncall', validateQuery(dateRangeQuery), asyncHandler(async (req, res) => {
+  const { startDate, endDate } = req.query as z.infer<typeof dateRangeQuery>;
+  const providerId = (req.query.providerId as string) || getProviderId(req.user!);
 
   const result = await pool.query(
     `SELECT id, provider_id, start_date, end_date, notes, created_at

@@ -6,13 +6,14 @@ import { validate } from '../middleware/validate.js';
 import { logAudit } from '../middleware/audit.js';
 import { authenticate } from '../middleware/auth.js';
 import { asyncHandler, NotFoundError } from '../errors/index.js';
+import { config } from '../config/index.js';
 
 const router = Router();
 
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 attempts per window
-  message: { error: 'Too many login attempts, please try again after 15 minutes' },
+  windowMs: config.rateLimit.authWindowMs,
+  max: config.rateLimit.authMaxRequests,
+  message: { error: 'Too many login attempts, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
 });

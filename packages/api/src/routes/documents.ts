@@ -7,6 +7,13 @@ import * as documentService from '../services/document.service.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { logAudit } from '../middleware/audit.js';
 import { asyncHandler, NotFoundError, BadRequestError } from '../errors/index.js';
+import { config } from '../config/index.js';
+import { z } from 'zod';
+
+const uploadDocumentBodySchema = z.object({
+  description: z.string().max(500).optional(),
+  category: z.enum(['scanned_document', 'letter', 'operative_note']).optional().default('scanned_document'),
+});
 
 const router = Router();
 
@@ -28,12 +35,10 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (_req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  // Allow PDF and common image formats (for scanned documents)
-  const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/tiff'];
-  if (allowedTypes.includes(file.mimetype)) {
+  if (config.uploads.allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Invalid file type. Only PDF, JPEG, PNG, and TIFF files are allowed.'));
+    cb(new Error(`Invalid file type. Allowed types: ${config.uploads.allowedMimeTypes.join(', ')}`));
   }
 };
 
@@ -41,7 +46,7 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 20 * 1024 * 1024, // 20MB limit
+    fileSize: config.uploads.maxFileSizeMb * 1024 * 1024,
   },
 });
 
@@ -82,6 +87,11 @@ router.post(
   asyncHandler(async (req, res) => {
     if (!req.file) throw new BadRequestError('No file uploaded');
 
+    const bodyResult = uploadDocumentBodySchema.safeParse(req.body);
+    if (!bodyResult.success) {
+      throw new BadRequestError(bodyResult.error.errors.map(e => e.message).join(', '));
+    }
+
     const document = await documentService.create({
       patientId: req.params.patientId,
       uploadedBy: req.user!.id,
@@ -89,8 +99,8 @@ router.post(
       originalName: req.file.originalname,
       mimeType: req.file.mimetype,
       fileSize: req.file.size,
-      description: req.body.description,
-      category: req.body.category || 'scanned_document',
+      description: bodyResult.data.description,
+      category: bodyResult.data.category,
     });
 
     await logAudit(req, {

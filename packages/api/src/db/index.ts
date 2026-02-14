@@ -1,5 +1,6 @@
 import pg from 'pg';
 import { config } from '../config/index.js';
+import { logger } from '../utils/logger.js';
 
 const { Pool } = pg;
 
@@ -10,12 +11,19 @@ const isCloudDB = config.database.connectionString.includes('supabase.co') ||
 
 export const pool = new Pool({
   connectionString: config.database.connectionString,
-  ssl: isCloudDB ? { rejectUnauthorized: false } : false,
+  ssl: isCloudDB ? { rejectUnauthorized: true } : false,
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
 });
 
 // Set search_path to include public schema (needed for Neon)
 pool.on('connect', (client) => {
   client.query('SET search_path TO public');
+});
+
+pool.on('error', (err) => {
+  logger.error('Unexpected database pool error', { error: err.message });
 });
 
 export async function query<T extends pg.QueryResultRow = pg.QueryResultRow>(
@@ -36,3 +44,35 @@ export async function query<T extends pg.QueryResultRow = pg.QueryResultRow>(
 export async function getClient() {
   return pool.connect();
 }
+
+/**
+ * Execute a function within a database transaction.
+ * Automatically commits on success, rolls back on error.
+ */
+export async function withTransaction<T>(
+  fn: (client: pg.PoolClient) => Promise<T>
+): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await fn(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+// Graceful shutdown
+function shutdown() {
+  logger.info('Shutting down database pool...');
+  pool.end().then(() => {
+    logger.info('Database pool closed');
+  });
+}
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);

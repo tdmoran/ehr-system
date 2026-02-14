@@ -1,98 +1,82 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import rateLimit from 'express-rate-limit';
 import * as userService from '../services/user.service.js';
 import { validate } from '../middleware/validate.js';
 import { logAudit } from '../middleware/audit.js';
 import { authenticate } from '../middleware/auth.js';
+import { asyncHandler, NotFoundError } from '../errors/index.js';
 
 const router = Router();
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts per window
+  message: { error: 'Too many login attempts, please try again after 15 minutes' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
 });
 
-router.post('/login', validate(loginSchema), async (req, res) => {
-  try {
-    const { email, password } = req.body;
+router.post('/login', loginLimiter, validate(loginSchema), asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
 
-    let user;
-    try {
-      user = await userService.verifyPassword(email, password);
-    } catch (verifyError: any) {
-      console.error('Password verification error:', verifyError);
-      return res.status(500).json({ error: 'Authentication service error', debug: verifyError?.message || String(verifyError) });
-    }
+  const user = await userService.verifyPassword(email, password);
 
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password' });
-    }
-
-    let token;
-    try {
-      token = userService.generateToken(user);
-    } catch (tokenError) {
-      console.error('Token generation error:', tokenError);
-      return res.status(500).json({ error: 'Token generation error' });
-    }
-
-    try {
-      await logAudit(req, {
-        userId: user.id,
-        action: 'login',
-        resourceType: 'session',
-      });
-    } catch (auditError) {
-      console.error('Audit log error:', auditError);
-      // Don't fail login for audit errors
-    }
-
-    res.json({
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        providerId: user.providerId,
-      },
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+  if (!user) {
+    return res.status(401).json({ error: 'Invalid email or password' });
   }
-});
 
-router.get('/me', authenticate, async (req, res) => {
+  const token = userService.generateToken(user);
+
   try {
-    const user = await userService.findById(req.user!.id);
+    await logAudit(req, {
+      userId: user.id,
+      action: 'login',
+      resourceType: 'session',
+    });
+  } catch {
+    // Don't fail login for audit errors
+  }
 
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    res.json({
+  res.json({
+    token,
+    user: {
       id: user.id,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role,
       providerId: user.providerId,
-    });
-  } catch (error) {
-    console.error('Get user error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+    },
+  });
+}));
 
-router.post('/logout', authenticate, async (req, res) => {
+router.get('/me', authenticate, asyncHandler(async (req, res) => {
+  const user = await userService.findById(req.user!.id);
+  if (!user) throw new NotFoundError('User not found');
+
+  res.json({
+    id: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    role: user.role,
+    providerId: user.providerId,
+  });
+}));
+
+router.post('/logout', authenticate, asyncHandler(async (req, res) => {
   await logAudit(req, {
     action: 'logout',
     resourceType: 'session',
   });
 
   res.json({ message: 'Logged out successfully' });
-});
+}));
 
 export default router;

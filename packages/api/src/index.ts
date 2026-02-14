@@ -1,10 +1,15 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import { config } from './config/index.js';
 import routes from './routes/index.js';
 import { logger } from './utils/logger.js';
+import { errorHandler } from './errors/index.js';
 
 const app = express();
+
+// Security headers
+app.use(helmet());
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -19,7 +24,7 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(null, true); // Allow all for now, tighten later if needed
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
     }
   },
   credentials: true,
@@ -47,10 +52,8 @@ app.get('/health', async (req, res) => {
 
 app.use('/api', routes);
 
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  logger.error('Unhandled error', { error: err.message, stack: err.stack });
-  res.status(500).json({ error: 'Internal server error' });
-});
+// Centralized error handler — must be registered after all routes
+app.use(errorHandler);
 
 // Start server
 const port = process.env.PORT || config.port;

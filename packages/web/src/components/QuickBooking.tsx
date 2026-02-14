@@ -181,7 +181,7 @@ export default function QuickBooking({
             </div>
 
             {/* Time Selection */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <label className="block text-sm font-medium text-navy-700 dark:text-navy-300 font-body mb-1">
                   Start Time <span className="text-coral-500">*</span>

@@ -178,111 +178,198 @@ export default function Dashboard() {
               return (
                 <div
                   key={apt.id}
-                  className={`flex items-center gap-4 px-6 py-4 transition-colors ${
+                  className={`px-4 sm:px-6 py-4 transition-colors ${
                     isCurrent ? 'bg-teal-50 dark:bg-teal-900/20' :
                     isPast ? '' : 'hover:bg-clinical-50 dark:hover:bg-navy-800/50'
                   }`}
                 >
-                  {/* Time - stays bright even when completed */}
-                  <div className="w-20 text-right">
-                    <p className="font-display font-semibold text-navy-900 dark:text-navy-100">
-                      {formatTime(apt.startTime)}
-                    </p>
-                  </div>
+                  {/* Desktop layout */}
+                  <div className="hidden sm:flex items-center gap-4">
+                    {/* Time */}
+                    <div className="w-20 text-right">
+                      <p className="font-display font-semibold text-navy-900 dark:text-navy-100">
+                        {formatTime(apt.startTime)}
+                      </p>
+                    </div>
 
-                  {/* Timeline dot */}
-                  <div className={`flex flex-col items-center ${isPast ? 'opacity-40' : ''}`}>
-                    <div className={`w-3 h-3 rounded-full ${getStatusColor(apt.status)} ${isCurrent ? 'ring-4 ring-teal-200 dark:ring-teal-800' : ''}`} />
-                    {index < displayedAppointments.length - 1 && (
-                      <div className="w-0.5 h-12 bg-clinical-200 dark:bg-navy-700 -mb-4" />
-                    )}
-                  </div>
-
-                  {/* Appointment Info */}
-                  <div className={`flex-1 min-w-0 ${isPast ? 'opacity-40' : ''}`}>
-                    <div className="flex items-center gap-2">
-                      {apt.appointmentType === 'New Patient' && !isPast && (
-                        <span className="px-1.5 py-0.5 text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded">
-                          NEW
-                        </span>
-                      )}
-                      <Link
-                        to={`/patients/${apt.patientId}`}
-                        className={`font-display font-semibold hover:underline ${
-                          isPast ? 'text-navy-400 dark:text-navy-500' :
-                          apt.appointmentType === 'New Patient' ? 'text-purple-600 dark:text-purple-400' :
-                          'text-teal-600 dark:text-teal-400'
-                        }`}
-                      >
-                        {apt.patientFirstName} {apt.patientLastName}
-                      </Link>
-                      {isCurrent && (
-                        <span className="badge badge-success">In Progress</span>
-                      )}
-                      {apt.status === 'checked_in' && (
-                        <button
-                          onClick={() => handleStatusUpdate(apt.id, 'scheduled')}
-                          className="badge badge-warning hover:bg-amber-200 dark:hover:bg-amber-800 cursor-pointer"
-                          title="Click to undo check-in"
-                        >
-                          Checked In ✕
-                        </button>
+                    {/* Timeline dot */}
+                    <div className={`flex flex-col items-center ${isPast ? 'opacity-40' : ''}`}>
+                      <div className={`w-3 h-3 rounded-full ${getStatusColor(apt.status)} ${isCurrent ? 'ring-4 ring-teal-200 dark:ring-teal-800' : ''}`} />
+                      {index < displayedAppointments.length - 1 && (
+                        <div className="w-0.5 h-12 bg-clinical-200 dark:bg-navy-700 -mb-4" />
                       )}
                     </div>
-                    <p className="text-sm text-navy-500 dark:text-navy-400 font-body">
-                      {apt.appointmentType}
-                      {apt.reason && ` · ${apt.reason}`}
-                    </p>
+
+                    {/* Appointment Info */}
+                    <div className={`flex-1 min-w-0 ${isPast ? 'opacity-40' : ''}`}>
+                      <div className="flex items-center gap-2">
+                        {apt.appointmentType === 'New Patient' && !isPast && (
+                          <span className="px-1.5 py-0.5 text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded">
+                            NEW
+                          </span>
+                        )}
+                        <Link
+                          to={`/patients/${apt.patientId}`}
+                          className={`font-display font-semibold hover:underline ${
+                            isPast ? 'text-navy-400 dark:text-navy-500' :
+                            apt.appointmentType === 'New Patient' ? 'text-purple-600 dark:text-purple-400' :
+                            'text-teal-600 dark:text-teal-400'
+                          }`}
+                        >
+                          {apt.patientFirstName} {apt.patientLastName}
+                        </Link>
+                        {isCurrent && (
+                          <span className="badge badge-success">In Progress</span>
+                        )}
+                        {apt.status === 'checked_in' && (
+                          <button
+                            onClick={() => handleStatusUpdate(apt.id, 'scheduled')}
+                            className="badge badge-warning hover:bg-amber-200 dark:hover:bg-amber-800 cursor-pointer"
+                            title="Click to undo check-in"
+                          >
+                            Checked In ✕
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-sm text-navy-500 dark:text-navy-400 font-body">
+                        {apt.appointmentType}
+                        {apt.reason && ` · ${apt.reason}`}
+                      </p>
+                    </div>
+
+                    {/* Completed badge */}
+                    {apt.status === 'completed' && (
+                      <span className="badge bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+                        Completed
+                      </span>
+                    )}
+
+                    {/* Actions */}
+                    <div className={`flex items-center gap-2 ${isPast ? 'opacity-40' : ''}`}>
+                      {(apt.status === 'scheduled' || apt.status === 'confirmed') && (
+                        <>
+                          <button
+                            onClick={() => handleStatusUpdate(apt.id, 'checked_in')}
+                            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg transition-colors"
+                          >
+                            Arrived
+                          </button>
+                          <button
+                            onClick={() => handleStatusUpdate(apt.id, 'no_show')}
+                            className="px-3 py-1.5 bg-coral-500 hover:bg-coral-600 text-white text-sm font-medium rounded-lg transition-colors"
+                          >
+                            No Show
+                          </button>
+                        </>
+                      )}
+                      {(apt.status === 'checked_in' || apt.status === 'in_progress') && (
+                        <button
+                          onClick={() => handleStatusUpdate(apt.id, 'completed')}
+                          className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg transition-colors"
+                        >
+                          Complete
+                        </button>
+                      )}
+                      {!isPast && (
+                        <Link
+                          to={`/patients/${apt.patientId}`}
+                          className="text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300"
+                        >
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                          </svg>
+                        </Link>
+                      )}
+                      {isPast && apt.status === 'completed' && (
+                        <CheckIcon className="w-5 h-5 text-teal-500" />
+                      )}
+                    </div>
                   </div>
 
-                  {/* Completed badge - outside dimmed section */}
-                  {apt.status === 'completed' && (
-                    <span className="badge bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
-                      Completed
-                    </span>
-                  )}
+                  {/* Mobile layout */}
+                  <div className="sm:hidden">
+                    <div className="flex items-start gap-3">
+                      {/* Timeline dot */}
+                      <div className={`mt-1.5 ${isPast ? 'opacity-40' : ''}`}>
+                        <div className={`w-3 h-3 rounded-full ${getStatusColor(apt.status)} ${isCurrent ? 'ring-4 ring-teal-200 dark:ring-teal-800' : ''}`} />
+                      </div>
 
-                  {/* Actions */}
-                  <div className={`flex items-center gap-2 ${isPast ? 'opacity-40' : ''}`}>
-                    {/* Arrived and No Show buttons - only show for scheduled/confirmed appointments */}
-                    {(apt.status === 'scheduled' || apt.status === 'confirmed') && (
-                      <>
-                        <button
-                          onClick={() => handleStatusUpdate(apt.id, 'checked_in')}
-                          className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg transition-colors"
+                      <div className={`flex-1 min-w-0 ${isPast ? 'opacity-40' : ''}`}>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {apt.appointmentType === 'New Patient' && !isPast && (
+                            <span className="px-1.5 py-0.5 text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded">
+                              NEW
+                            </span>
+                          )}
+                          <Link
+                            to={`/patients/${apt.patientId}`}
+                            className={`font-display font-semibold hover:underline ${
+                              isPast ? 'text-navy-400 dark:text-navy-500' :
+                              apt.appointmentType === 'New Patient' ? 'text-purple-600 dark:text-purple-400' :
+                              'text-teal-600 dark:text-teal-400'
+                            }`}
+                          >
+                            {apt.patientFirstName} {apt.patientLastName}
+                          </Link>
+                        </div>
+                        <p className="text-xs text-navy-500 dark:text-navy-400 font-body mt-0.5">
+                          {formatTime(apt.startTime)} · {apt.appointmentType}
+                          {apt.reason && ` · ${apt.reason}`}
+                        </p>
+                      </div>
+
+                      {/* Mobile status indicator */}
+                      {apt.status === 'completed' && (
+                        <CheckIcon className="w-5 h-5 text-teal-500 flex-shrink-0" />
+                      )}
+                      {!isPast && apt.status !== 'completed' && (
+                        <Link
+                          to={`/patients/${apt.patientId}`}
+                          className="text-teal-600 dark:text-teal-400 flex-shrink-0 p-1"
                         >
-                          Arrived
-                        </button>
-                        <button
-                          onClick={() => handleStatusUpdate(apt.id, 'no_show')}
-                          className="px-3 py-1.5 bg-coral-500 hover:bg-coral-600 text-white text-sm font-medium rounded-lg transition-colors"
-                        >
-                          No Show
-                        </button>
-                      </>
-                    )}
-                    {/* Complete button - show for checked_in or in_progress patients */}
-                    {(apt.status === 'checked_in' || apt.status === 'in_progress') && (
-                      <button
-                        onClick={() => handleStatusUpdate(apt.id, 'completed')}
-                        className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg transition-colors"
-                      >
-                        Complete
-                      </button>
-                    )}
-                    {/* Go to chart */}
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                          </svg>
+                        </Link>
+                      )}
+                    </div>
+
+                    {/* Mobile action buttons */}
                     {!isPast && (
-                      <Link
-                        to={`/patients/${apt.patientId}`}
-                        className="text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300"
-                      >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                        </svg>
-                      </Link>
-                    )}
-                    {isPast && apt.status === 'completed' && (
-                      <CheckIcon className="w-5 h-5 text-teal-500" />
+                      <div className="flex items-center gap-2 mt-2 ml-6">
+                        {(apt.status === 'scheduled' || apt.status === 'confirmed') && (
+                          <>
+                            <button
+                              onClick={() => handleStatusUpdate(apt.id, 'checked_in')}
+                              className="flex-1 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium rounded-lg transition-colors"
+                            >
+                              Arrived
+                            </button>
+                            <button
+                              onClick={() => handleStatusUpdate(apt.id, 'no_show')}
+                              className="flex-1 py-2 bg-coral-500 hover:bg-coral-600 text-white text-xs font-medium rounded-lg transition-colors"
+                            >
+                              No Show
+                            </button>
+                          </>
+                        )}
+                        {apt.status === 'checked_in' && (
+                          <button
+                            onClick={() => handleStatusUpdate(apt.id, 'scheduled')}
+                            className="badge badge-warning hover:bg-amber-200 dark:hover:bg-amber-800 cursor-pointer"
+                          >
+                            Checked In ✕
+                          </button>
+                        )}
+                        {(apt.status === 'checked_in' || apt.status === 'in_progress') && (
+                          <button
+                            onClick={() => handleStatusUpdate(apt.id, 'completed')}
+                            className="flex-1 py-2 bg-green-500 hover:bg-green-600 text-white text-xs font-medium rounded-lg transition-colors"
+                          >
+                            Complete
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -413,10 +500,10 @@ export default function Dashboard() {
               return (
                 <div
                   key={apt.id}
-                  className="flex items-center gap-4 px-6 py-4 hover:bg-amber-50/50 dark:hover:bg-amber-900/20 transition-colors"
+                  className="flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-4 hover:bg-amber-50/50 dark:hover:bg-amber-900/20 transition-colors"
                 >
-                  <div className="w-12 h-12 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center flex-shrink-0">
-                    <span className="text-lg font-bold text-teal-700 dark:text-teal-400">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center flex-shrink-0">
+                    <span className="text-base sm:text-lg font-bold text-teal-700 dark:text-teal-400">
                       {apt.patientFirstName?.[0]}{apt.patientLastName?.[0]}
                     </span>
                   </div>
@@ -424,7 +511,7 @@ export default function Dashboard() {
                     <p className="font-display font-semibold text-navy-900 dark:text-navy-100">
                       {apt.patientFirstName} {apt.patientLastName}
                     </p>
-                    <p className="text-sm text-navy-500 dark:text-navy-400">
+                    <p className="text-sm text-navy-500 dark:text-navy-400 truncate">
                       {apt.appointmentType}
                       {apt.reason && ` · ${apt.reason}`}
                     </p>
@@ -434,9 +521,9 @@ export default function Dashboard() {
                   </div>
                   <Link
                     to={`/patients/${apt.patientId}`}
-                    className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
+                    className="px-3 sm:px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2 flex-shrink-0 text-sm sm:text-base"
                   >
-                    Start Visit
+                    <span className="hidden sm:inline">Start Visit</span>
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
                     </svg>
@@ -449,7 +536,7 @@ export default function Dashboard() {
       )}
 
       {/* Today's Summary */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
         <div className="card-clinical p-4 text-center">
           <p className="font-display text-3xl font-bold text-navy-900 dark:text-navy-100">{todayAppointments.length}</p>
           <p className="text-navy-500 dark:text-navy-400 font-body text-sm mt-1">Total Today</p>
@@ -486,10 +573,10 @@ export default function Dashboard() {
               {noShowAppointments.map((apt) => (
                 <div
                   key={apt.id}
-                  className="flex items-center gap-4 px-6 py-4"
+                  className="flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-4"
                 >
-                  <div className="w-12 h-12 rounded-full bg-coral-100 dark:bg-coral-900/30 flex items-center justify-center flex-shrink-0">
-                    <span className="text-lg font-bold text-coral-700 dark:text-coral-400">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-coral-100 dark:bg-coral-900/30 flex items-center justify-center flex-shrink-0">
+                    <span className="text-base sm:text-lg font-bold text-coral-700 dark:text-coral-400">
                       {apt.patientFirstName?.[0]}{apt.patientLastName?.[0]}
                     </span>
                   </div>
@@ -500,13 +587,13 @@ export default function Dashboard() {
                     >
                       {apt.patientFirstName} {apt.patientLastName}
                     </Link>
-                    <p className="text-sm text-navy-500 dark:text-navy-400">
-                      {apt.appointmentType} · Scheduled for {formatTime(apt.startTime)}
+                    <p className="text-sm text-navy-500 dark:text-navy-400 truncate">
+                      {apt.appointmentType} · {formatTime(apt.startTime)}
                     </p>
                   </div>
                   <Link
                     to={`/patients/${apt.patientId}`}
-                    className="px-3 py-1.5 bg-teal-500 hover:bg-teal-600 text-white text-sm font-medium rounded-lg transition-colors"
+                    className="px-3 py-2 bg-teal-500 hover:bg-teal-600 text-white text-sm font-medium rounded-lg transition-colors flex-shrink-0"
                   >
                     Reschedule
                   </Link>

@@ -59,7 +59,7 @@ export function NotesTabContent({
           value={notes}
           onChange={(e) => onNotesChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full h-96 p-4 border border-clinical-200 dark:border-navy-700 rounded-lg font-body text-navy-900 dark:text-navy-100 dark:bg-navy-800 placeholder:text-navy-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
+          className="w-full h-48 md:h-64 lg:h-96 p-4 border border-clinical-200 dark:border-navy-700 rounded-lg font-body text-navy-900 dark:text-navy-100 dark:bg-navy-800 placeholder:text-navy-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
         />
       </div>
     </div>

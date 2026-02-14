@@ -38,9 +38,14 @@ const SPONSORS = [
 export default function Layout({ children }: LayoutProps) {
   const { user, logout } = useAuth();
   const location = useLocation();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const { theme, setTheme, isAuto, setIsAuto } = useTheme();
   const [sponsorIndex, setSponsorIndex] = useState(0);
+
+  // Close mobile drawer on route change
+  useEffect(() => {
+    setMobileDrawerOpen(false);
+  }, [location.pathname]);
 
   // Cycle through sponsors every 2 minutes
   useEffect(() => {
@@ -68,6 +73,21 @@ export default function Layout({ children }: LayoutProps) {
       ]
     : baseNavItems;
 
+  // Bottom nav: show primary items + More drawer for the rest
+  const bottomNavItems = user?.role === 'secretary'
+    ? [
+        { path: '/', label: 'Home', icon: DashboardIcon },
+        { path: '/schedule', label: 'Schedule', icon: ScheduleIcon },
+        { path: '/patients', label: 'Patients', icon: PatientsIcon },
+        { path: '/calendar', label: 'Calendar', icon: CalendarIcon },
+      ]
+    : [
+        { path: '/', label: 'Home', icon: DashboardIcon },
+        { path: '/patients', label: 'Patients', icon: PatientsIcon },
+        { path: '/calendar', label: 'Calendar', icon: CalendarIcon },
+        { path: '/documents', label: 'Docs', icon: DocumentsIcon },
+      ];
+
   const toggleTheme = () => {
     if (isAuto) {
       setIsAuto(false);
@@ -86,22 +106,6 @@ export default function Layout({ children }: LayoutProps) {
       {/* Top Navigation Bar */}
       <header className="fixed top-0 left-0 right-0 h-16 bg-navy-900 z-50 shadow-clinical-lg safe-area-top">
         <div className="h-full flex items-center justify-between px-4 md:px-6">
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden flex items-center justify-center w-9 h-9 rounded-lg bg-white/5 text-navy-300 hover:bg-white/10 hover:text-white transition-all"
-          >
-            {mobileMenuOpen ? (
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-              </svg>
-            )}
-          </button>
-
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 md:gap-3 group">
             <div className="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center shadow-lg shadow-teal-500/20 group-hover:shadow-teal-500/40 transition-shadow">
@@ -185,44 +189,173 @@ export default function Layout({ children }: LayoutProps) {
         </div>
       </header>
 
-      {/* Mobile Navigation Menu */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-40 md:hidden">
-          <div className="fixed inset-0 bg-black/50" onClick={() => setMobileMenuOpen(false)} />
-          <nav className="fixed top-16 left-0 right-0 bg-navy-800 dark:bg-navy-900 border-b border-navy-700 shadow-lg safe-area-left safe-area-right">
-            {navItems.map(({ path, label, icon: Icon }) => {
-              const isActive = location.pathname === path ||
-                (path !== '/' && location.pathname.startsWith(path));
-              return (
-                <Link
-                  key={path}
-                  to={path}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-6 py-4 font-display text-base font-medium border-b border-navy-700 ${
-                    isActive
-                      ? 'bg-white/10 text-white'
-                      : 'text-navy-300 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                  {label}
-                </Link>
-              );
-            })}
-            <div className="px-6 py-4 border-b border-navy-700 sm:hidden">
-              <span className="text-white font-display font-medium text-sm">
-                {user?.firstName} {user?.lastName}
-              </span>
-              <span className="text-navy-400 text-xs capitalize block">{user?.role}</span>
+      {/* Mobile Bottom Navigation Bar */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white dark:bg-navy-900 border-t border-clinical-200 dark:border-navy-700 safe-area-bottom">
+        <div className="flex items-stretch">
+          {bottomNavItems.map(({ path, label, icon: Icon }) => {
+            const isActive = location.pathname === path ||
+              (path !== '/' && location.pathname.startsWith(path));
+            return (
+              <Link
+                key={path}
+                to={path}
+                className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 transition-colors ${
+                  isActive
+                    ? 'text-teal-600 dark:text-teal-400'
+                    : 'text-navy-400 dark:text-navy-500 active:text-navy-600 dark:active:text-navy-300'
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                <span className="text-[10px] font-medium font-display">{label}</span>
+              </Link>
+            );
+          })}
+          {/* More / Resources button */}
+          {user?.role !== 'secretary' && (
+            <button
+              onClick={() => setMobileDrawerOpen(true)}
+              className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 transition-colors ${
+                mobileDrawerOpen
+                  ? 'text-teal-600 dark:text-teal-400'
+                  : 'text-navy-400 dark:text-navy-500 active:text-navy-600 dark:active:text-navy-300'
+              }`}
+            >
+              <MoreIcon className="w-5 h-5" />
+              <span className="text-[10px] font-medium font-display">More</span>
+            </button>
+          )}
+        </div>
+      </nav>
+
+      {/* Mobile Resources Drawer */}
+      {mobileDrawerOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setMobileDrawerOpen(false)} />
+          <div className="fixed right-0 top-0 bottom-0 w-[85%] max-w-sm bg-white dark:bg-navy-900 shadow-xl overflow-y-auto animate-slide-in-right">
+            <div className="sticky top-0 bg-white dark:bg-navy-900 border-b border-clinical-200 dark:border-navy-700 px-4 py-4 flex items-center justify-between z-10">
+              <h2 className="font-display font-bold text-navy-900 dark:text-navy-100">Resources</h2>
+              <button
+                onClick={() => setMobileDrawerOpen(false)}
+                className="w-8 h-8 rounded-lg hover:bg-clinical-100 dark:hover:bg-navy-800 flex items-center justify-center"
+              >
+                <svg className="w-5 h-5 text-navy-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-          </nav>
+
+            <div className="p-4 space-y-6">
+              {/* Extra nav links not in bottom bar */}
+              {user?.role === 'secretary' && (
+                <div className="space-y-2">
+                  <Link
+                    to="/documents"
+                    className="flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-display font-medium text-navy-700 dark:text-navy-200 hover:bg-clinical-50 dark:hover:bg-navy-800 transition-colors"
+                  >
+                    <DocumentsIcon className="w-5 h-5" />
+                    Documents
+                  </Link>
+                </div>
+              )}
+
+              {/* Training Videos */}
+              <div className="space-y-3">
+                <h3 className="font-display font-semibold text-navy-900 dark:text-navy-100 text-sm uppercase tracking-wide flex items-center gap-2">
+                  <VideoIcon className="w-4 h-4 text-teal-500" />
+                  Training Videos
+                </h3>
+                <div className="space-y-1">
+                  <VideoLink title="Neck Dissection" url="https://vimeo.com/1012424850/6cf73d3755" />
+                  <VideoLink title="Endoscopic Ear Surgery" url="https://vimeo.com/1021002624/b9d0af20bd" />
+                  <VideoLink title="Facial Nerve Palsy & Reanimation" url="https://vimeo.com/1070998239/ec00424d73" />
+                </div>
+                <a
+                  href="https://msurgery.ie/home/surgical-training-programmes/higher-surgical-training/higher-surgical-training-otolaryngology-surgery-ent/remote-training-sessions-ent/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-center text-xs text-teal-600 dark:text-teal-400 hover:underline font-body py-2"
+                >
+                  View all 100+ videos
+                </a>
+              </div>
+
+              {/* Quick Links */}
+              <div className="space-y-3">
+                <h3 className="font-display font-semibold text-navy-900 dark:text-navy-100 text-sm uppercase tracking-wide">
+                  Resources
+                </h3>
+                <div className="space-y-1">
+                  <QuickLink label="Cancer Staging App" url="https://tdmoran.github.io/CancerStageApp/" />
+                  <QuickLink label="AAO-HNS Guidelines" url="https://www.entnet.org/quality-practice/quality-products/clinical-practice-guidelines/" />
+                  <QuickLink label="ICD-10 Lookup" url="https://www.icd10data.com/" />
+                  <QuickLink label="Drug Interactions" url="https://www.drugs.com/drug_interactions.html" />
+                </div>
+              </div>
+
+              {/* Medical News */}
+              <div className="space-y-3">
+                <h3 className="font-display font-semibold text-navy-900 dark:text-navy-100 text-sm uppercase tracking-wide">
+                  Medical News
+                </h3>
+                <div className="space-y-2">
+                  <RSSFeedItem title="New ENT Treatment Guidelines Released" source="JAMA Otolaryngology" time="2h ago" />
+                  <RSSFeedItem title="Advances in Cochlear Implant Technology" source="ENT Today" time="4h ago" />
+                  <RSSFeedItem title="Sleep Apnea Screening Recommendations Updated" source="AAO-HNS" time="6h ago" />
+                </div>
+              </div>
+
+              {/* Sponsors */}
+              <div className="space-y-3">
+                <h3 className="font-display font-semibold text-navy-900 dark:text-navy-100 text-sm uppercase tracking-wide">
+                  Sponsors
+                </h3>
+                {[0, 1].map((offset) => {
+                  const sponsor = SPONSORS[(sponsorIndex + offset) % SPONSORS.length];
+                  const getFontStyle = () => {
+                    switch (sponsor.style) {
+                      case 'uppercase': return 'uppercase tracking-wider';
+                      case 'lowercase': return 'lowercase';
+                      case 'bold': return 'font-black tracking-tight';
+                      default: return '';
+                    }
+                  };
+                  const fontSize = sponsor.display.length > 6 ? 'text-[9px]' : sponsor.display.length > 4 ? 'text-[10px]' : 'text-xs';
+                  return (
+                    <a
+                      key={`drawer-${sponsor.name}-${offset}`}
+                      href="#"
+                      className="block bg-white dark:bg-navy-800 rounded-xl p-3 border border-clinical-200 dark:border-navy-700"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                          style={{ backgroundColor: sponsor.bgColor }}
+                        >
+                          <span
+                            className={`font-display font-bold ${fontSize} ${getFontStyle()}`}
+                            style={{ color: sponsor.textColor }}
+                          >
+                            {sponsor.display}
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-display font-semibold text-navy-900 dark:text-navy-100 text-sm truncate">{sponsor.name}</h4>
+                          <p className="text-xs text-navy-500 dark:text-navy-400">Sponsored</p>
+                        </div>
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Main Content with Right Sidebar */}
-      <div className="pt-16 min-h-screen flex">
+      <div className="pt-16 pb-16 md:pb-0 min-h-screen flex">
         {/* Main Content */}
-        <main className="flex-1 safe-area-bottom">
+        <main className="flex-1">
           <div className="p-4 md:p-6 lg:p-8">{children}</div>
         </main>
 
@@ -490,6 +623,14 @@ function LogoutIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+    </svg>
+  );
+}
+
+function MoreIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
     </svg>
   );
 }

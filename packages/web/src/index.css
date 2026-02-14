@@ -170,3 +170,22 @@ body {
     scrollbar-width: none;
   }
 }
+
+/* Mobile bottom nav safe area spacing */
+@media (max-width: 768px) {
+  /* Ensure modals clear the bottom nav */
+  .fixed.inset-0 {
+    z-index: 50;
+  }
+
+  /* Better tap feedback on mobile */
+  button, a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Prevent text selection on interactive elements */
+  nav button, nav a {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}

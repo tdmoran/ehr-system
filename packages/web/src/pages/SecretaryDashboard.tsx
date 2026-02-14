@@ -343,7 +343,7 @@ export default function SecretaryDashboard() {
       </div>
 
       {/* Quick Actions - Book Appointments */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <button
           onClick={() => openQuickBooking('clinic')}
           className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-teal-500 via-teal-600 to-emerald-600 p-6 text-left shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.01]"

@@ -256,7 +256,7 @@ export function ExtractedFieldsReview({
                           {getConfidenceBadge(field.confidenceScore)}
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-sm">
                           <div>
                             <span className="text-gray-500 dark:text-gray-400 block mb-1">Current:</span>
                             <span className="text-gray-700 dark:text-gray-300">
@@ -286,8 +286,8 @@ export function ExtractedFieldsReview({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-          <div className="flex items-center justify-end gap-3">
+        <div className="px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3">
             <button
               onClick={onClose}
               disabled={applying}

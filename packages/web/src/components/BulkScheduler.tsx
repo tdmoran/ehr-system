@@ -273,74 +273,102 @@ export default function BulkScheduler({
             )}
           </div>
 
-          {/* Table */}
+          {/* Preview List */}
           <div className="card-clinical overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-clinical-100 dark:bg-navy-800">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-navy-500 dark:text-navy-400 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-navy-500 dark:text-navy-400 uppercase tracking-wider">
-                      Patient
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-navy-500 dark:text-navy-400 uppercase tracking-wider">
-                      Time
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-navy-500 dark:text-navy-400 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-navy-500 dark:text-navy-400 uppercase tracking-wider">
-                      Reason
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-clinical-200 dark:divide-navy-700">
-                  {parsedRows.map((row, index) => (
-                    <tr
-                      key={index}
-                      className={row.error ? 'bg-coral-50 dark:bg-coral-900/10' : ''}
-                    >
-                      <td className="px-4 py-3">
-                        {row.error ? (
-                          <span className="inline-flex items-center gap-1 text-coral-600 dark:text-coral-400">
-                            <ErrorIcon className="w-4 h-4" />
-                            <span className="text-xs">{row.error}</span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center text-green-600 dark:text-green-400">
-                            <CheckIcon className="w-4 h-4" />
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-navy-900 dark:text-navy-100">
+            {/* Desktop Table Header */}
+            <div className="hidden md:grid md:grid-cols-12 bg-clinical-100 dark:bg-navy-800 px-4 py-3 text-xs font-medium text-navy-500 dark:text-navy-400 uppercase tracking-wider">
+              <div className="col-span-2">Status</div>
+              <div className="col-span-4">Patient</div>
+              <div className="col-span-2">Time</div>
+              <div className="col-span-2">Type</div>
+              <div className="col-span-2">Reason</div>
+            </div>
+
+            <div className="divide-y divide-clinical-200 dark:divide-navy-700">
+              {parsedRows.map((row, index) => (
+                <div
+                  key={index}
+                  className={`px-4 py-3 ${row.error ? 'bg-coral-50 dark:bg-coral-900/10' : ''}`}
+                >
+                  {/* Mobile card layout */}
+                  <div className="md:hidden space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-navy-900 dark:text-navy-100">
                         {row.patient ? (
-                          <span>
+                          <>
                             {row.patient.firstName} {row.patient.lastName}
-                            <span className="text-navy-400 dark:text-navy-500 ml-1">
+                            <span className="text-navy-400 dark:text-navy-500 ml-1 text-xs">
                               ({row.patient.mrn})
                             </span>
-                          </span>
+                          </>
                         ) : (
                           <span className="text-navy-400 dark:text-navy-500 italic">
                             {row.patientIdentifier}
                           </span>
                         )}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-navy-900 dark:text-navy-100">
-                        {row.time}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-navy-900 dark:text-navy-100">
-                        {row.appointmentType}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-navy-500 dark:text-navy-400">
-                        {row.reason || '-'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </span>
+                      {row.error ? (
+                        <ErrorIcon className="w-4 h-4 text-coral-600 dark:text-coral-400 flex-shrink-0" />
+                      ) : (
+                        <CheckIcon className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-navy-500 dark:text-navy-400">
+                      <span>{row.time}</span>
+                      <span className="text-navy-300 dark:text-navy-600">|</span>
+                      <span>{row.appointmentType}</span>
+                      {row.reason && (
+                        <>
+                          <span className="text-navy-300 dark:text-navy-600">|</span>
+                          <span className="truncate">{row.reason}</span>
+                        </>
+                      )}
+                    </div>
+                    {row.error && (
+                      <p className="text-xs text-coral-600 dark:text-coral-400">{row.error}</p>
+                    )}
+                  </div>
+
+                  {/* Desktop row layout */}
+                  <div className="hidden md:grid md:grid-cols-12 items-center">
+                    <div className="col-span-2">
+                      {row.error ? (
+                        <span className="inline-flex items-center gap-1 text-coral-600 dark:text-coral-400">
+                          <ErrorIcon className="w-4 h-4" />
+                          <span className="text-xs">{row.error}</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center text-green-600 dark:text-green-400">
+                          <CheckIcon className="w-4 h-4" />
+                        </span>
+                      )}
+                    </div>
+                    <div className="col-span-4 text-sm text-navy-900 dark:text-navy-100">
+                      {row.patient ? (
+                        <span>
+                          {row.patient.firstName} {row.patient.lastName}
+                          <span className="text-navy-400 dark:text-navy-500 ml-1">
+                            ({row.patient.mrn})
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-navy-400 dark:text-navy-500 italic">
+                          {row.patientIdentifier}
+                        </span>
+                      )}
+                    </div>
+                    <div className="col-span-2 text-sm text-navy-900 dark:text-navy-100">
+                      {row.time}
+                    </div>
+                    <div className="col-span-2 text-sm text-navy-900 dark:text-navy-100">
+                      {row.appointmentType}
+                    </div>
+                    <div className="col-span-2 text-sm text-navy-500 dark:text-navy-400">
+                      {row.reason || '-'}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 

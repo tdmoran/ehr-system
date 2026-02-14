@@ -306,7 +306,7 @@ export default function Calendar() {
         </div>
 
         {/* Actions and Provider Filter */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <button
             onClick={() => {
               setEventDate(new Date().toISOString().split('T')[0]);
@@ -314,12 +314,12 @@ export default function Calendar() {
               setEventNotes('');
               setShowEventModal(true);
             }}
-            className="px-5 py-2 text-sm font-medium rounded-lg border-2 w-52 flex items-center justify-center gap-2 transition-all bg-amber-500 hover:bg-amber-600 text-white border-amber-500 hover:border-amber-600"
+            className="px-4 sm:px-5 py-2 text-sm font-medium rounded-lg border-2 flex-1 sm:flex-none sm:w-auto flex items-center justify-center gap-2 transition-all bg-amber-500 hover:bg-amber-600 text-white border-amber-500 hover:border-amber-600"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
-            Add Event
+            <span className="sm:inline">Add Event</span>
           </button>
           {user?.role === 'provider' && (
             <button
@@ -328,18 +328,19 @@ export default function Calendar() {
                 setOnCallEndDate(new Date().toISOString().split('T')[0]);
                 setShowOnCallModal(true);
               }}
-              className="px-5 py-2 text-sm font-medium rounded-lg border-2 w-52 flex items-center justify-center gap-2 transition-all bg-violet-500 hover:bg-violet-600 text-white border-violet-500 hover:border-violet-600"
+              className="px-4 sm:px-5 py-2 text-sm font-medium rounded-lg border-2 flex-1 sm:flex-none sm:w-auto flex items-center justify-center gap-2 transition-all bg-violet-500 hover:bg-violet-600 text-white border-violet-500 hover:border-violet-600"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              Add On Call Period
+              <span className="hidden sm:inline">Add On Call Period</span>
+              <span className="sm:hidden">On Call</span>
             </button>
           )}
           <select
             value={selectedProvider}
             onChange={(e) => setSelectedProvider(e.target.value)}
-            className="input-clinical py-2 text-sm"
+            className="input-clinical py-2 text-sm w-full sm:w-auto"
           >
             <option value="">All Providers</option>
             {providers.map(provider => (
@@ -388,12 +389,13 @@ export default function Calendar() {
 
         {/* Day Headers */}
         <div className="grid grid-cols-7 border-b border-clinical-200 dark:border-navy-700">
-          {DAYS.map(day => (
+          {DAYS.map((day) => (
             <div
               key={day}
-              className="px-2 py-3 text-center text-sm font-medium text-navy-500 dark:text-navy-400 font-body"
+              className="px-1 sm:px-2 py-2 sm:py-3 text-center text-xs sm:text-sm font-medium text-navy-500 dark:text-navy-400 font-body"
             >
-              {day}
+              <span className="hidden sm:inline">{day}</span>
+              <span className="sm:hidden">{day[0]}</span>
             </div>
           ))}
         </div>
@@ -410,7 +412,7 @@ export default function Calendar() {
               <div
                 key={index}
                 onClick={() => date && handleDayClick(date)}
-                className={`min-h-[120px] border-b border-r border-clinical-200 dark:border-navy-700 p-2 cursor-pointer transition-colors
+                className={`min-h-[60px] sm:min-h-[120px] border-b border-r border-clinical-200 dark:border-navy-700 p-1 sm:p-2 cursor-pointer transition-colors
                   ${date ? 'hover:bg-clinical-50 dark:hover:bg-navy-800/50' : 'bg-clinical-100/50 dark:bg-navy-900/50'}
                   ${index % 7 === 6 ? 'border-r-0' : ''}
                   ${onCall ? 'bg-violet-50 dark:bg-violet-900/20' : ''}
@@ -422,28 +424,44 @@ export default function Calendar() {
 
                   return (
                     <>
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center justify-between mb-0.5 sm:mb-2">
                         <div className="flex flex-col items-start gap-0.5">
                           {isCurrentDay && (
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
+                            <span className="hidden sm:block text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
                               Today
                             </span>
                           )}
-                          <div className={`text-sm font-medium ${
+                          <div className={`text-xs sm:text-sm font-medium ${
                             isCurrentDay
-                              ? 'w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center ring-4 ring-teal-400/30 dark:ring-teal-500/30 shadow-lg shadow-teal-500/20'
+                              ? 'w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-teal-600 text-white flex items-center justify-center ring-2 sm:ring-4 ring-teal-400/30 dark:ring-teal-500/30 shadow-lg shadow-teal-500/20'
                               : 'text-navy-700 dark:text-navy-300'
                           }`}>
                             {date.getDate()}
                           </div>
                         </div>
                         {onCall && (
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-violet-500 text-white font-medium">
+                          <span className="hidden sm:inline text-xs px-1.5 py-0.5 rounded bg-violet-500 text-white font-medium">
                             On Call
                           </span>
                         )}
                       </div>
-                      <div className="space-y-1">
+                      {/* Mobile: dot indicators */}
+                      <div className="flex flex-wrap gap-1 sm:hidden">
+                        {clinicCount > 0 && (
+                          <div className="w-2 h-2 rounded-full bg-teal-500" title={`${clinicCount} Clinic`} />
+                        )}
+                        {operationsCount > 0 && (
+                          <div className="w-2 h-2 rounded-full bg-coral-500" title={`${operationsCount} Ops`} />
+                        )}
+                        {dayEvents.length > 0 && (
+                          <div className="w-2 h-2 rounded-full bg-amber-500" title={`${dayEvents.length} Events`} />
+                        )}
+                        {onCall && (
+                          <div className="w-2 h-2 rounded-full bg-violet-500" title="On Call" />
+                        )}
+                      </div>
+                      {/* Desktop: full labels */}
+                      <div className="hidden sm:block space-y-1">
                         {clinicCount > 0 && (
                           <button
                             onClick={(e) => {
@@ -572,7 +590,7 @@ export default function Calendar() {
                 </div>
 
                 {/* Time */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <label className="block text-sm font-medium text-navy-700 dark:text-navy-300 font-body mb-1">
                       Start Time <span className="text-coral-500">*</span>

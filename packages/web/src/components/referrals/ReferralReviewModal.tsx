@@ -242,7 +242,7 @@ export function ReferralReviewModal({ referral, onClose, onResolved }: ReferralR
             <div className="space-y-6">
               {/* Extracted Patient Info */}
               <Section title="Extracted Patient Information">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <Field label="First Name" value={referral.patientFirstName} />
                   <Field label="Last Name" value={referral.patientLastName} />
                   <Field
@@ -315,7 +315,7 @@ export function ReferralReviewModal({ referral, onClose, onResolved }: ReferralR
                 Review and edit the patient information extracted from the referral letter.
               </p>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     First Name *
@@ -456,17 +456,17 @@ export function ReferralReviewModal({ referral, onClose, onResolved }: ReferralR
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+        <div className="px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
           {mode === 'review' && (
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <button
                 onClick={handleSkip}
                 disabled={loading}
-                className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 disabled:opacity-50 order-last sm:order-first"
               >
                 Skip
               </button>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
                 {referral.matchedPatientId ? (
                   <>
                     <button

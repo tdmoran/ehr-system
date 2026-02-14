@@ -5,6 +5,7 @@ import { authenticate, authorize } from '../middleware/auth.js';
 import { logAudit } from '../middleware/audit.js';
 import { validate, validateQuery } from '../middleware/validate.js';
 import { asyncHandler, NotFoundError } from '../errors/index.js';
+import { cacheResponse } from '../middleware/cache.js';
 
 const router = Router();
 
@@ -173,14 +174,14 @@ router.post('/bulk', authorize('provider', 'nurse', 'admin', 'secretary'), valid
   res.status(201).json({ appointments: createdAppointments, errors });
 }));
 
-// Get appointment types
-router.get('/config/types', asyncHandler(async (req, res) => {
+// Get appointment types (cached 5 min - rarely changes)
+router.get('/config/types', cacheResponse(5 * 60 * 1000), asyncHandler(async (req, res) => {
   const types = await appointmentService.getAppointmentTypes();
   res.json({ types });
 }));
 
-// Get providers list
-router.get('/config/providers', asyncHandler(async (req, res) => {
+// Get providers list (cached 5 min - rarely changes)
+router.get('/config/providers', cacheResponse(5 * 60 * 1000), asyncHandler(async (req, res) => {
   const providers = await appointmentService.getProviders();
   res.json({ providers });
 }));

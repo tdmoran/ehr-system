@@ -1,44 +1,69 @@
-const CACHE_NAME = 'ehr-cache-v1';
-const urlsToCache = [
+const CACHE_NAME = 'rooms-v1';
+const STATIC_ASSETS = [
   '/',
-  '/index.html'
+  '/manifest.json',
+  '/icon-192.svg',
+  '/icon-512.svg',
 ];
 
-// Install service worker
+// Install: pre-cache static assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(urlsToCache))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
   );
   self.skipWaiting();
 });
 
-// Activate and clean old caches
+// Activate: clean old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter((key) => key !== CACHE_NAME)
+          .map((key) => caches.delete(key))
+      )
+    )
   );
   self.clients.claim();
 });
 
-// Network-first strategy for API calls, cache-first for assets
+// Fetch: network-first for API, stale-while-revalidate for static assets
 self.addEventListener('fetch', (event) => {
-  if (event.request.url.includes('/api/')) {
-    // Network only for API calls
-    event.respondWith(fetch(event.request));
-  } else {
-    // Cache first, then network for assets
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // Skip non-GET requests
+  if (request.method !== 'GET') return;
+
+  // API requests: network-first with offline fallback
+  if (url.pathname.startsWith('/api/')) {
     event.respondWith(
-      caches.match(event.request)
-        .then((response) => response || fetch(event.request))
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
     );
+    return;
   }
+
+  // Static assets and navigation: stale-while-revalidate
+  event.respondWith(
+    caches.match(request).then((cached) => {
+      const fetchPromise = fetch(request).then((response) => {
+        if (response.ok && response.type === 'basic') {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        }
+        return response;
+      }).catch(() => cached);
+
+      return cached || fetchPromise;
+    })
+  );
 });

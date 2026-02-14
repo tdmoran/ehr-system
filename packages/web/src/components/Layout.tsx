@@ -103,8 +103,16 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen bg-clinical-50 dark:bg-navy-950 transition-colors duration-300">
+      {/* Skip to main content link for keyboard users */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[60] focus:px-4 focus:py-2 focus:bg-teal-600 focus:text-white focus:rounded-lg focus:font-medium focus:text-sm focus:shadow-lg"
+      >
+        Skip to main content
+      </a>
+
       {/* Top Navigation Bar */}
-      <header className="fixed top-0 left-0 right-0 h-16 bg-navy-900 z-50 shadow-clinical-lg safe-area-top">
+      <header className="fixed top-0 left-0 right-0 h-16 bg-navy-900 z-50 shadow-clinical-lg safe-area-top" role="banner">
         <div className="h-full flex items-center justify-between px-4 md:px-6">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 md:gap-3 group">
@@ -124,7 +132,7 @@ export default function Layout({ children }: LayoutProps) {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex items-center gap-1" aria-label="Main navigation">
             {navItems.map(({ path, label, icon: Icon }) => {
               const isActive = location.pathname === path ||
                 (path !== '/' && location.pathname.startsWith(path));
@@ -152,6 +160,7 @@ export default function Layout({ children }: LayoutProps) {
               <button
                 onClick={toggleTheme}
                 className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/5 text-navy-300 hover:bg-white/10 hover:text-white transition-all duration-200"
+                aria-label={isAuto ? `Auto theme (currently ${theme})` : `Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
                 title={isAuto ? `Auto (${theme})` : theme === 'dark' ? 'Dark mode' : 'Light mode'}
               >
                 {theme === 'dark' ? (
@@ -181,6 +190,7 @@ export default function Layout({ children }: LayoutProps) {
             <button
               onClick={logout}
               className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/5 text-navy-300 hover:bg-white/10 hover:text-white transition-all duration-200"
+              aria-label="Sign out"
               title="Sign out"
             >
               <LogoutIcon className="w-4 h-4" />
@@ -229,8 +239,8 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Mobile Resources Drawer */}
       {mobileDrawerOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <div className="fixed inset-0 bg-black/50" onClick={() => setMobileDrawerOpen(false)} />
+        <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Resources">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setMobileDrawerOpen(false)} aria-hidden="true" />
           <div className="fixed right-0 top-0 bottom-0 w-[85%] max-w-sm bg-white dark:bg-navy-900 shadow-xl overflow-y-auto animate-slide-in-right">
             <div className="sticky top-0 bg-white dark:bg-navy-900 border-b border-clinical-200 dark:border-navy-700 px-4 py-4 flex items-center justify-between z-10">
               <h2 className="font-display font-bold text-navy-900 dark:text-navy-100">Resources</h2>
@@ -355,7 +365,7 @@ export default function Layout({ children }: LayoutProps) {
       {/* Main Content with Right Sidebar */}
       <div className="pt-16 pb-16 md:pb-0 min-h-screen flex">
         {/* Main Content */}
-        <main className="flex-1">
+        <main id="main-content" className="flex-1" role="main">
           <div className="p-4 md:p-6 lg:p-8">{children}</div>
         </main>
 

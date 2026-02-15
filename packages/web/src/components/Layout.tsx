@@ -7,32 +7,18 @@ interface LayoutProps {
   children: ReactNode;
 }
 
-// Sponsor logos displayed as styled brand marks
-const SPONSORS = [
-  { name: 'Ambu', display: 'ambu', style: 'lowercase', bgColor: '#003366', textColor: '#fff' },
-  { name: 'CCMed', display: 'CC Med', style: 'normal', bgColor: '#0d9488', textColor: '#fff' },
-  { name: 'Eurosurgical', display: 'ES', style: 'bold', bgColor: '#6d28d9', textColor: '#fff' },
-  { name: 'Fannin', display: 'fannin', style: 'lowercase', bgColor: '#059669', textColor: '#fff' },
-  { name: 'Irish Hospital Supplies', display: 'IHS', style: 'bold', bgColor: '#0284c7', textColor: '#fff' },
-  { name: 'NBCL', display: 'nbcl', style: 'lowercase', bgColor: '#dc2626', textColor: '#fff' },
-  { name: 'NeilMed', display: 'NeilMed', style: 'normal', bgColor: '#1e40af', textColor: '#fff' },
-  { name: 'Nutricia', display: 'nutricia', style: 'lowercase', bgColor: '#0891b2', textColor: '#fff' },
-  { name: 'Sentient Healthcare', display: 'SH', style: 'bold', bgColor: '#7c3aed', textColor: '#fff' },
-  { name: 'Severn', display: 'SEVERN', style: 'uppercase', bgColor: '#4f46e5', textColor: '#fff' },
-  { name: 'Terumo', display: 'TERUMO', style: 'uppercase', bgColor: '#be123c', textColor: '#fff' },
-  { name: 'Thor Medical', display: 'THOR', style: 'uppercase', bgColor: '#b45309', textColor: '#fff' },
-  { name: 'Baxter', display: 'Baxter', style: 'normal', bgColor: '#1d4ed8', textColor: '#fff' },
-  { name: 'Gemini', display: 'GEMINI', style: 'uppercase', bgColor: '#0d9488', textColor: '#fff' },
-  { name: 'HC21 Healthcare', display: 'HC21', style: 'bold', bgColor: '#16a34a', textColor: '#fff' },
-  { name: 'Soluvos Medical', display: 'Soluvos', style: 'normal', bgColor: '#65a30d', textColor: '#fff' },
-  { name: 'Tekno Surgical', display: 'TEKNO', style: 'uppercase', bgColor: '#c2410c', textColor: '#fff' },
-  { name: 'Viatris', display: 'VIATRIS', style: 'uppercase', bgColor: '#047857', textColor: '#fff' },
-  { name: 'Ethicon', display: 'ETHICON', style: 'uppercase', bgColor: '#1e40af', textColor: '#fff' },
-  { name: 'Bicara Therapeutics', display: 'BICARA', style: 'uppercase', bgColor: '#a21caf', textColor: '#fff' },
-  { name: 'DP Medical', display: 'DP', style: 'bold', bgColor: '#0284c7', textColor: '#fff' },
-  { name: 'RCSI', display: 'RCSI', style: 'uppercase', bgColor: '#991b1b', textColor: '#fff' },
-  { name: 'Diploma Life Sciences', display: 'DLS', style: 'bold', bgColor: '#7e22ce', textColor: '#fff' },
-  { name: 'A. Menarini', display: 'Menarini', style: 'normal', bgColor: '#1d4ed8', textColor: '#fff' },
+// ENT medical device company advertisements
+const AD_SPONSORS = [
+  { name: 'Medtronic', logo: '/ads/01-Medtronic.png', tagline: 'Leading ENT Surgical Technology' },
+  { name: 'Karl Storz', logo: '/ads/02-Karl-Storz.png', tagline: 'World Leader in Endoscopy' },
+  { name: 'Stryker', logo: '/ads/03-Stryker.png', tagline: 'Surgical Equipment & ENT Instruments' },
+  { name: 'Olympus', logo: '/ads/04-Olympus.png', tagline: 'Advanced ENT Visualization Systems' },
+  { name: 'Smith & Nephew', logo: '/ads/05-Smith-Nephew.png', tagline: 'Advanced Surgical Devices' },
+  { name: 'Johnson & Johnson', logo: '/ads/06-Johnson-Johnson.png', tagline: 'Ethicon Surgical Solutions' },
+  { name: 'Boston Scientific', logo: '/ads/07-Boston-Scientific.png', tagline: 'Innovative Medical Devices' },
+  { name: 'Cochlear', logo: '/ads/08-Cochlear.png', tagline: 'World Leader in Hearing Implants' },
+  { name: 'Richard Wolf', logo: '/ads/09-Richard-Wolf.png', tagline: 'Minimally Invasive ENT Surgery' },
+  { name: 'Hoya/Pentax Medical', logo: '/ads/10-Hoya-Pentax.png', tagline: 'Advanced Endoscopy & Imaging' },
 ];
 
 export default function Layout({ children }: LayoutProps) {
@@ -47,11 +33,11 @@ export default function Layout({ children }: LayoutProps) {
     setMobileDrawerOpen(false);
   }, [location.pathname]);
 
-  // Cycle through sponsors every 2 minutes
+  // Cycle through ad sponsors every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      setSponsorIndex((prev) => (prev + 2) % SPONSORS.length);
-    }, 120000);
+      setSponsorIndex((prev) => (prev + 2) % AD_SPONSORS.length);
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -320,16 +306,7 @@ export default function Layout({ children }: LayoutProps) {
                   Sponsors
                 </h3>
                 {[0, 1].map((offset) => {
-                  const sponsor = SPONSORS[(sponsorIndex + offset) % SPONSORS.length];
-                  const getFontStyle = () => {
-                    switch (sponsor.style) {
-                      case 'uppercase': return 'uppercase tracking-wider';
-                      case 'lowercase': return 'lowercase';
-                      case 'bold': return 'font-black tracking-tight';
-                      default: return '';
-                    }
-                  };
-                  const fontSize = sponsor.display.length > 6 ? 'text-[9px]' : sponsor.display.length > 4 ? 'text-[10px]' : 'text-xs';
+                  const sponsor = AD_SPONSORS[(sponsorIndex + offset) % AD_SPONSORS.length];
                   return (
                     <a
                       key={`drawer-${sponsor.name}-${offset}`}
@@ -337,20 +314,16 @@ export default function Layout({ children }: LayoutProps) {
                       className="block bg-white dark:bg-navy-800 rounded-xl p-3 border border-clinical-200 dark:border-navy-700"
                     >
                       <div className="flex items-center gap-3">
-                        <div
-                          className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                          style={{ backgroundColor: sponsor.bgColor }}
-                        >
-                          <span
-                            className={`font-display font-bold ${fontSize} ${getFontStyle()}`}
-                            style={{ color: sponsor.textColor }}
-                          >
-                            {sponsor.display}
-                          </span>
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-white p-1">
+                          <img
+                            src={sponsor.logo}
+                            alt={sponsor.name}
+                            className="w-full h-full object-contain"
+                          />
                         </div>
                         <div className="min-w-0">
                           <h4 className="font-display font-semibold text-navy-900 dark:text-navy-100 text-sm truncate">{sponsor.name}</h4>
-                          <p className="text-xs text-navy-500 dark:text-navy-400">Sponsored</p>
+                          <p className="text-xs text-navy-500 dark:text-navy-400">{sponsor.tagline}</p>
                         </div>
                       </div>
                     </a>
@@ -403,16 +376,7 @@ export default function Layout({ children }: LayoutProps) {
                 Sponsors
               </h3>
               {[0, 1].map((offset) => {
-                const sponsor = SPONSORS[(sponsorIndex + offset) % SPONSORS.length];
-                const getFontStyle = () => {
-                  switch (sponsor.style) {
-                    case 'uppercase': return 'uppercase tracking-wider';
-                    case 'lowercase': return 'lowercase';
-                    case 'bold': return 'font-black tracking-tight';
-                    default: return '';
-                  }
-                };
-                const fontSize = sponsor.display.length > 6 ? 'text-[9px]' : sponsor.display.length > 4 ? 'text-[10px]' : 'text-xs';
+                const sponsor = AD_SPONSORS[(sponsorIndex + offset) % AD_SPONSORS.length];
                 return (
                   <a
                     key={`${sponsor.name}-${offset}`}
@@ -420,20 +384,16 @@ export default function Layout({ children }: LayoutProps) {
                     className="block bg-white dark:bg-navy-800 rounded-xl p-4 border border-clinical-200 dark:border-navy-700 hover:shadow-md transition-all duration-500 hover:border-clinical-300 dark:hover:border-navy-600"
                   >
                     <div className="flex items-center gap-3">
-                      <div
-                        className="w-14 h-14 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm"
-                        style={{ backgroundColor: sponsor.bgColor }}
-                      >
-                        <span
-                          className={`font-display font-bold ${fontSize} ${getFontStyle()}`}
-                          style={{ color: sponsor.textColor }}
-                        >
-                          {sponsor.display}
-                        </span>
+                      <div className="w-14 h-14 rounded-lg flex items-center justify-center flex-shrink-0 bg-white p-1">
+                        <img
+                          src={sponsor.logo}
+                          alt={sponsor.name}
+                          className="w-full h-full object-contain"
+                        />
                       </div>
                       <div className="min-w-0">
                         <h4 className="font-display font-semibold text-navy-900 dark:text-navy-100 text-sm truncate">{sponsor.name}</h4>
-                        <p className="text-xs text-navy-500 dark:text-navy-400 mt-0.5">Sponsored</p>
+                        <p className="text-xs text-navy-500 dark:text-navy-400 mt-0.5">{sponsor.tagline}</p>
                       </div>
                     </div>
                   </a>
@@ -496,18 +456,26 @@ export default function Layout({ children }: LayoutProps) {
               <h3 className="font-display font-semibold text-navy-900 dark:text-navy-100 text-sm uppercase tracking-wide">
                 Sponsored
               </h3>
-              <div className="bg-gradient-to-br from-clinical-50 to-clinical-100 dark:from-navy-800 dark:to-navy-800 rounded-xl p-4 border border-clinical-200 dark:border-navy-700">
-                <div className="aspect-[4/3] bg-navy-100 dark:bg-navy-700 rounded-lg flex items-center justify-center mb-3">
-                  <span className="text-navy-400 dark:text-navy-500 text-sm font-body">Ad Space 300x250</span>
-                </div>
-                <p className="text-xs text-navy-500 dark:text-navy-400 text-center font-body">Advertisement</p>
-              </div>
-              <div className="bg-gradient-to-br from-clinical-50 to-clinical-100 dark:from-navy-800 dark:to-navy-800 rounded-xl p-4 border border-clinical-200 dark:border-navy-700">
-                <div className="aspect-[2/1] bg-navy-100 dark:bg-navy-700 rounded-lg flex items-center justify-center mb-3">
-                  <span className="text-navy-400 dark:text-navy-500 text-sm font-body">Ad Space 300x150</span>
-                </div>
-                <p className="text-xs text-navy-500 dark:text-navy-400 text-center font-body">Advertisement</p>
-              </div>
+              {[4, 6].map((adOffset) => {
+                const ad = AD_SPONSORS[(sponsorIndex + adOffset) % AD_SPONSORS.length];
+                return (
+                  <a
+                    key={`ad-${ad.name}-${adOffset}`}
+                    href="#"
+                    className="block bg-gradient-to-br from-clinical-50 to-clinical-100 dark:from-navy-800 dark:to-navy-800 rounded-xl p-4 border border-clinical-200 dark:border-navy-700 hover:shadow-md transition-all duration-500"
+                  >
+                    <div className="bg-white rounded-lg flex items-center justify-center p-4 mb-3">
+                      <img
+                        src={ad.logo}
+                        alt={ad.name}
+                        className="max-h-20 w-auto object-contain"
+                      />
+                    </div>
+                    <p className="font-display font-semibold text-navy-900 dark:text-navy-100 text-sm text-center">{ad.name}</p>
+                    <p className="text-xs text-navy-500 dark:text-navy-400 text-center font-body mt-1">{ad.tagline}</p>
+                  </a>
+                );
+              })}
             </div>
           </div>
         </aside>

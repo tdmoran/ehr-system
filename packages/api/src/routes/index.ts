@@ -9,6 +9,7 @@ import referralRoutes from './referrals.js';
 import calendarRoutes from './calendar.js';
 import taskRoutes from './tasks.js';
 import procedureTemplateRoutes from './procedureTemplates.js';
+import transcriptionRoutes from './transcriptions.js';
 
 const router = Router();
 
@@ -22,5 +23,6 @@ router.use('/referrals', referralRoutes);
 router.use('/calendar', calendarRoutes);
 router.use('/tasks', taskRoutes);
 router.use('/procedure-templates', procedureTemplateRoutes);
+router.use('/transcriptions', transcriptionRoutes);
 
 export default router;

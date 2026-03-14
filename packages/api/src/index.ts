@@ -26,6 +26,9 @@ app.use(cors({
     // Allow requests with no origin (mobile apps, curl, etc.)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
+    } else if (origin.endsWith('.vercel.app')) {
+      // Allow Vercel preview deployments for mobile testing
+      callback(null, true);
     } else {
       callback(new Error(`Origin ${origin} not allowed by CORS`));
     }

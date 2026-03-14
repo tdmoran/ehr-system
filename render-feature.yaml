@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: ehr-system-feature
+    runtime: node
+    region: oregon
+    rootDir: packages/api
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: https://ehr-system-feature.onrender.com
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ehr-feature-db
+          property: connectionString
+
+  - type: web
+    name: ehr-system-web-feature
+    runtime: static
+    region: oregon
+    rootDir: packages/web
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://ehr-system-feature.onrender.com
+
+databases:
+  - name: ehr-feature-db
+    region: oregon
+    plan: free

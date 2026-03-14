@@ -452,6 +452,83 @@ export async function getSuggestedCodes(
   return { icdCodes: [], cptCodes: [] };
 }
 
+// ─── Note Update ────────────────────────────────────────────────────────────
+
+export interface UpdateNoteInput {
+  chiefComplaint?: string;
+  subjective?: string;
+  objective?: string;
+  assessment?: string;
+  plan?: string;
+  summary?: string;
+  reviewStatus?: 'draft' | 'finalized';
+}
+
+export async function updateNote(
+  sessionId: string,
+  input: UpdateNoteInput
+): Promise<TranscriptionNote> {
+  // Find existing note for this session
+  const existing = await query<Record<string, unknown>>(
+    `SELECT id FROM transcription_notes WHERE session_id = $1 ORDER BY created_at DESC LIMIT 1`,
+    [sessionId]
+  );
+
+  if (existing.rows.length === 0) {
+    throw new Error('No note found for this session');
+  }
+
+  const noteId = existing.rows[0].id as string;
+
+  const setClauses: string[] = [];
+  const values: unknown[] = [];
+  let paramIdx = 1;
+
+  if (input.chiefComplaint !== undefined) {
+    setClauses.push(`chief_complaint = $${paramIdx++}`);
+    values.push(input.chiefComplaint);
+  }
+  if (input.subjective !== undefined) {
+    setClauses.push(`subjective = $${paramIdx++}`);
+    values.push(input.subjective);
+  }
+  if (input.objective !== undefined) {
+    setClauses.push(`objective = $${paramIdx++}`);
+    values.push(input.objective);
+  }
+  if (input.assessment !== undefined) {
+    setClauses.push(`assessment = $${paramIdx++}`);
+    values.push(input.assessment);
+  }
+  if (input.plan !== undefined) {
+    setClauses.push(`plan = $${paramIdx++}`);
+    values.push(input.plan);
+  }
+  if (input.summary !== undefined) {
+    setClauses.push(`summary = $${paramIdx++}`);
+    values.push(input.summary);
+  }
+
+  setClauses.push(`updated_at = NOW()`);
+
+  if (setClauses.length === 1) {
+    // Only updated_at, no actual changes
+    const result = await query<Record<string, unknown>>(
+      `SELECT * FROM transcription_notes WHERE id = $1`,
+      [noteId]
+    );
+    return mapNoteRow(result.rows[0]);
+  }
+
+  values.push(noteId);
+  const result = await query<Record<string, unknown>>(
+    `UPDATE transcription_notes SET ${setClauses.join(', ')} WHERE id = $${paramIdx} RETURNING *`,
+    values
+  );
+
+  return mapNoteRow(result.rows[0]);
+}
+
 // ─── Template CRUD ───────────────────────────────────────────────────────────
 
 export async function findTemplatesByProviderId(providerId: string): Promise<TranscriptionTemplate[]> {

@@ -241,6 +241,62 @@ router.post(
   })
 );
 
+// PUT /sessions/:id/note — Update note content (draft save)
+const updateNoteSchema = z.object({
+  chiefComplaint: z.string().optional(),
+  subjective: z.string().optional(),
+  objective: z.string().optional(),
+  assessment: z.string().optional(),
+  plan: z.string().optional(),
+  summary: z.string().optional(),
+  reviewStatus: z.enum(['draft', 'finalized']).optional(),
+});
+
+router.put(
+  '/sessions/:id/note',
+  authorize('provider', 'nurse'),
+  validate(updateNoteSchema),
+  asyncHandler(async (req, res) => {
+    const existing = await transcriptionService.findSessionById(req.params.id);
+    if (!existing) throw new NotFoundError('Transcription session not found');
+
+    if (existing.providerId !== req.user!.id && req.user!.role !== 'admin') {
+      throw new ForbiddenError('Cannot modify another provider\'s note');
+    }
+
+    const note = await transcriptionService.updateNote(req.params.id, req.body);
+
+    await logAudit(req, {
+      action: 'update',
+      resourceType: 'transcription_note',
+      resourceId: req.params.id,
+      patientId: existing.patientId,
+      details: { updatedFields: Object.keys(req.body), reviewStatus: req.body.reviewStatus },
+    });
+
+    res.json({ note });
+  })
+);
+
+// GET /sessions/:id/note — Get note for a session
+router.get(
+  '/sessions/:id/note',
+  authorize('provider', 'nurse', 'admin'),
+  asyncHandler(async (req, res) => {
+    const result = await transcriptionService.getSessionWithNote(req.params.id);
+    if (!result) throw new NotFoundError('Transcription session not found');
+
+    await logAudit(req, {
+      action: 'view',
+      resourceType: 'transcription_note',
+      resourceId: req.params.id,
+      patientId: result.session.patientId,
+    });
+
+    res.json({ note: result.note });
+  })
+);
+
 // GET /sessions/:id/codes — Get suggested ICD-10/CPT codes
 router.get(
   '/sessions/:id/codes',

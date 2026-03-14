@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { transcriptionsApi, TranscriptionSession, TranscriptionStatus } from '../../api/transcriptions';
+import { transcriptionsApi, TranscriptionSession } from '../../api/transcriptions';
 import { api, Patient } from '../../api/client';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -26,7 +26,6 @@ interface LiveRecordingProps {
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const WAVEFORM_BAR_COUNT = 48;
-const WAVEFORM_UPDATE_INTERVAL_MS = 50;
 const AUDIO_CHUNK_INTERVAL_MS = 5000;
 const WS_RECONNECT_DELAY_MS = 3000;
 const MAX_WS_RECONNECT_ATTEMPTS = 5;

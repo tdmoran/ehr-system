@@ -8,6 +8,7 @@ import { ocrApi } from './ocr';
 import { referralsApi } from './referrals';
 import { calendarApi } from './calendar';
 import { tasksApi } from './tasks';
+import { transcriptionsApi } from './transcriptions';
 
 export const api = {
   ...authApi,
@@ -19,6 +20,7 @@ export const api = {
   ...referralsApi,
   ...calendarApi,
   ...tasksApi,
+  ...transcriptionsApi,
 };
 
 // Re-export all types

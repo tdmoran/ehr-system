@@ -1,0 +1,840 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { transcriptionsApi, TranscriptionSession, TranscriptionStatus } from '../../api/transcriptions';
+import { api, Patient } from '../../api/client';
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+type RecordingState = 'idle' | 'recording' | 'paused' | 'processing' | 'error';
+
+interface TranscriptLine {
+  readonly speaker: string;
+  readonly text: string;
+  readonly timestamp: number;
+}
+
+interface LiveRecordingProps {
+  /** Pre-selected patient ID (e.g. from patient chart) */
+  readonly initialPatientId?: string;
+  /** Pre-selected appointment ID */
+  readonly appointmentId?: string;
+  /** Called when recording session completes successfully */
+  readonly onSessionComplete?: (session: TranscriptionSession) => void;
+  /** Called when user cancels recording */
+  readonly onCancel?: () => void;
+}
+
+// ─── Constants ──────────────────────────────────────────────────────────────
+
+const WAVEFORM_BAR_COUNT = 48;
+const WAVEFORM_UPDATE_INTERVAL_MS = 50;
+const AUDIO_CHUNK_INTERVAL_MS = 5000;
+const WS_RECONNECT_DELAY_MS = 3000;
+const MAX_WS_RECONNECT_ATTEMPTS = 5;
+
+// ─── Component ──────────────────────────────────────────────────────────────
+
+export function LiveRecording({
+  initialPatientId,
+  appointmentId,
+  onSessionComplete,
+  onCancel,
+}: LiveRecordingProps) {
+  // ── State ───────────────────────────────────────────────────────────────
+  const [recordingState, setRecordingState] = useState<RecordingState>('idle');
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [waveformData, setWaveformData] = useState<readonly number[]>(
+    () => Array.from({ length: WAVEFORM_BAR_COUNT }, () => 0)
+  );
+  const [transcriptLines, setTranscriptLines] = useState<readonly TranscriptLine[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
+
+  // Patient selector state
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(initialPatientId ?? null);
+  const [patientSearch, setPatientSearch] = useState('');
+  const [patients, setPatients] = useState<readonly Patient[]>([]);
+  const [patientsLoading, setPatientsLoading] = useState(false);
+  const [showPatientDropdown, setShowPatientDropdown] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+
+  // ── Refs ─────────────────────────────────────────────────────────────────
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const waveformAnimationRef = useRef<number | null>(null);
+  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const wsReconnectAttemptsRef = useRef(0);
+  const transcriptEndRef = useRef<HTMLDivElement | null>(null);
+  const patientDropdownRef = useRef<HTMLDivElement | null>(null);
+
+  // ── Patient search with debounce ────────────────────────────────────────
+
+  useEffect(() => {
+    if (!patientSearch.trim()) {
+      setPatients([]);
+      return;
+    }
+
+    const timeout = setTimeout(async () => {
+      setPatientsLoading(true);
+      const { data, error: apiError } = await api.getPatients(patientSearch);
+      if (data && !apiError) {
+        setPatients(data.patients);
+      }
+      setPatientsLoading(false);
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [patientSearch]);
+
+  // Load initial patient if ID provided
+  useEffect(() => {
+    if (!initialPatientId) return;
+
+    (async () => {
+      const { data } = await api.getPatient(initialPatientId);
+      if (data) {
+        setSelectedPatient(data.patient);
+      }
+    })();
+  }, [initialPatientId]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (patientDropdownRef.current && !patientDropdownRef.current.contains(e.target as Node)) {
+        setShowPatientDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Auto-scroll transcript
+  useEffect(() => {
+    transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [transcriptLines]);
+
+  // ── Cleanup on unmount ──────────────────────────────────────────────────
+
+  useEffect(() => {
+    return () => {
+      stopMediaResources();
+      stopTimer();
+      disconnectWebSocket();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Media / Audio helpers ───────────────────────────────────────────────
+
+  const stopMediaResources = useCallback(() => {
+    if (waveformAnimationRef.current !== null) {
+      cancelAnimationFrame(waveformAnimationRef.current);
+      waveformAnimationRef.current = null;
+    }
+
+    mediaRecorderRef.current?.stop();
+    mediaRecorderRef.current = null;
+
+    mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+    mediaStreamRef.current = null;
+
+    if (audioContextRef.current?.state !== 'closed') {
+      audioContextRef.current?.close();
+    }
+    audioContextRef.current = null;
+    analyserRef.current = null;
+  }, []);
+
+  const startWaveformVisualization = useCallback(() => {
+    const analyser = analyserRef.current;
+    if (!analyser) return;
+
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+    const draw = () => {
+      analyser.getByteFrequencyData(dataArray);
+
+      const step = Math.floor(dataArray.length / WAVEFORM_BAR_COUNT);
+      const bars: number[] = [];
+      for (let i = 0; i < WAVEFORM_BAR_COUNT; i++) {
+        let sum = 0;
+        for (let j = 0; j < step; j++) {
+          sum += dataArray[i * step + j];
+        }
+        bars.push(sum / step / 255);
+      }
+
+      setWaveformData(bars);
+      waveformAnimationRef.current = requestAnimationFrame(draw);
+    };
+
+    draw();
+  }, []);
+
+  // ── Timer helpers ───────────────────────────────────────────────────────
+
+  const startTimer = useCallback(() => {
+    stopTimer();
+    timerIntervalRef.current = setInterval(() => {
+      setElapsedSeconds((prev) => prev + 1);
+    }, 1000);
+  }, []);
+
+  const stopTimer = useCallback(() => {
+    if (timerIntervalRef.current !== null) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
+  }, []);
+
+  // ── WebSocket for live transcript ───────────────────────────────────────
+
+  const connectWebSocket = useCallback((sid: string) => {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = import.meta.env.VITE_API_URL
+      ? new URL(import.meta.env.VITE_API_URL).host
+      : window.location.host;
+    const wsUrl = `${protocol}//${host}/api/transcriptions/${sid}/live`;
+
+    setConnectionStatus('connecting');
+
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      setConnectionStatus('connected');
+      wsReconnectAttemptsRef.current = 0;
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        if (message.type === 'transcript') {
+          const line: TranscriptLine = {
+            speaker: message.speaker ?? 'Unknown',
+            text: message.text ?? '',
+            timestamp: message.timestamp ?? Date.now(),
+          };
+          setTranscriptLines((prev) => [...prev, line]);
+        } else if (message.type === 'status') {
+          if (message.status === 'completed' || message.status === 'failed') {
+            setRecordingState(message.status === 'completed' ? 'processing' : 'error');
+            if (message.error) {
+              setError(message.error);
+            }
+          }
+        }
+      } catch {
+        // Ignore malformed messages
+      }
+    };
+
+    ws.onclose = () => {
+      setConnectionStatus('disconnected');
+      // Auto-reconnect if still recording
+      if (wsReconnectAttemptsRef.current < MAX_WS_RECONNECT_ATTEMPTS) {
+        wsReconnectAttemptsRef.current += 1;
+        setTimeout(() => {
+          if (mediaRecorderRef.current?.state === 'recording') {
+            connectWebSocket(sid);
+          }
+        }, WS_RECONNECT_DELAY_MS);
+      }
+    };
+
+    ws.onerror = () => {
+      setConnectionStatus('disconnected');
+    };
+
+    wsRef.current = ws;
+  }, []);
+
+  const disconnectWebSocket = useCallback(() => {
+    wsRef.current?.close();
+    wsRef.current = null;
+    setConnectionStatus('disconnected');
+  }, []);
+
+  // ── Recording controls ──────────────────────────────────────────────────
+
+  const handleStartRecording = useCallback(async () => {
+    if (!selectedPatientId) {
+      setError('Please select a patient before recording.');
+      return;
+    }
+
+    setError(null);
+
+    // 1. Request mic permission
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 44100,
+        },
+      });
+    } catch (err) {
+      const message =
+        err instanceof DOMException && err.name === 'NotAllowedError'
+          ? 'Microphone access denied. Please allow microphone permissions in your browser settings.'
+          : 'Could not access microphone. Please check your audio device.';
+      setError(message);
+      return;
+    }
+
+    mediaStreamRef.current = stream;
+
+    // 2. Create session on backend
+    const { data, error: apiError } = await transcriptionsApi.createSession({
+      patientId: selectedPatientId,
+      appointmentId,
+    });
+
+    if (apiError || !data) {
+      setError(apiError ?? 'Failed to create transcription session.');
+      stream.getTracks().forEach((t) => t.stop());
+      return;
+    }
+
+    const sid = data.session.id;
+    setSessionId(sid);
+
+    // 3. Set status to recording
+    await transcriptionsApi.updateSessionStatus(sid, 'recording');
+
+    // 4. Set up Web Audio API for waveform
+    const audioContext = new AudioContext();
+    const source = audioContext.createMediaStreamSource(stream);
+    const analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    source.connect(analyser);
+
+    audioContextRef.current = audioContext;
+    analyserRef.current = analyser;
+
+    // 5. Set up MediaRecorder for audio chunks
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+      ? 'audio/webm;codecs=opus'
+      : 'audio/webm';
+
+    const recorder = new MediaRecorder(stream, { mimeType });
+
+    recorder.ondataavailable = async (event) => {
+      if (event.data.size > 0 && sid) {
+        const { error: uploadError } = await transcriptionsApi.uploadAudioChunk(sid, event.data);
+        if (uploadError) {
+          console.error('Audio chunk upload failed:', uploadError);
+        }
+      }
+    };
+
+    recorder.start(AUDIO_CHUNK_INTERVAL_MS);
+    mediaRecorderRef.current = recorder;
+
+    // 6. Connect WebSocket for live transcript
+    connectWebSocket(sid);
+
+    // 7. Start visualization and timer
+    startWaveformVisualization();
+    startTimer();
+    setRecordingState('recording');
+  }, [
+    selectedPatientId,
+    appointmentId,
+    connectWebSocket,
+    startWaveformVisualization,
+    startTimer,
+  ]);
+
+  const handlePauseResume = useCallback(() => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder) return;
+
+    if (recordingState === 'recording') {
+      recorder.pause();
+      stopTimer();
+      if (waveformAnimationRef.current !== null) {
+        cancelAnimationFrame(waveformAnimationRef.current);
+        waveformAnimationRef.current = null;
+      }
+      setRecordingState('paused');
+    } else if (recordingState === 'paused') {
+      recorder.resume();
+      startTimer();
+      startWaveformVisualization();
+      setRecordingState('recording');
+    }
+  }, [recordingState, stopTimer, startTimer, startWaveformVisualization]);
+
+  const handleStopRecording = useCallback(async () => {
+    setRecordingState('processing');
+    stopTimer();
+    stopMediaResources();
+    disconnectWebSocket();
+
+    // Flatten waveform
+    setWaveformData(Array.from({ length: WAVEFORM_BAR_COUNT }, () => 0));
+
+    if (!sessionId) return;
+
+    // Update session status to processing
+    const { error: statusError } = await transcriptionsApi.updateSessionStatus(sessionId, 'processing');
+    if (statusError) {
+      setError(statusError);
+      setRecordingState('error');
+      return;
+    }
+
+    // Trigger note generation
+    const { data, error: genError } = await transcriptionsApi.generateNote(sessionId);
+    if (genError || !data) {
+      setError(genError ?? 'Note generation failed.');
+      setRecordingState('error');
+      return;
+    }
+
+    // Fetch final session
+    const { data: sessionData } = await transcriptionsApi.getSession(sessionId);
+    if (sessionData) {
+      onSessionComplete?.(sessionData.session);
+    }
+  }, [sessionId, stopTimer, stopMediaResources, disconnectWebSocket, onSessionComplete]);
+
+  const handleCancel = useCallback(async () => {
+    stopTimer();
+    stopMediaResources();
+    disconnectWebSocket();
+    setRecordingState('idle');
+    setElapsedSeconds(0);
+    setTranscriptLines([]);
+    setWaveformData(Array.from({ length: WAVEFORM_BAR_COUNT }, () => 0));
+
+    if (sessionId) {
+      await transcriptionsApi.updateSessionStatus(sessionId, 'cancelled');
+    }
+
+    onCancel?.();
+  }, [sessionId, stopTimer, stopMediaResources, disconnectWebSocket, onCancel]);
+
+  // ── Patient selection ───────────────────────────────────────────────────
+
+  const handleSelectPatient = useCallback((patient: Patient) => {
+    setSelectedPatientId(patient.id);
+    setSelectedPatient(patient);
+    setPatientSearch('');
+    setShowPatientDropdown(false);
+  }, []);
+
+  const clearPatient = useCallback(() => {
+    setSelectedPatientId(null);
+    setSelectedPatient(null);
+  }, []);
+
+  // ── Derived values ──────────────────────────────────────────────────────
+
+  const formattedTime = formatDuration(elapsedSeconds);
+  const isRecordingActive = recordingState === 'recording' || recordingState === 'paused';
+  const canStart = recordingState === 'idle' && selectedPatientId !== null;
+
+  // ── Render ──────────────────────────────────────────────────────────────
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <MicrophoneIcon className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Live Recording
+          </h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <StatusBadge recordingState={recordingState} />
+          <ConnectionBadge status={connectionStatus} />
+        </div>
+      </div>
+
+      <div className="p-6 space-y-5">
+        {/* Patient Selector */}
+        {recordingState === 'idle' && (
+          <div ref={patientDropdownRef} className="relative">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+              Patient
+            </label>
+            {selectedPatient ? (
+              <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 rounded-lg px-4 py-2.5">
+                <div>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">
+                    {selectedPatient.lastName}, {selectedPatient.firstName}
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                    MRN: {selectedPatient.mrn}
+                  </span>
+                </div>
+                <button
+                  onClick={clearPatient}
+                  className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                  aria-label="Clear patient selection"
+                >
+                  <XIcon className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <div>
+                <input
+                  type="text"
+                  value={patientSearch}
+                  onChange={(e) => {
+                    setPatientSearch(e.target.value);
+                    setShowPatientDropdown(true);
+                  }}
+                  onFocus={() => setShowPatientDropdown(true)}
+                  placeholder="Search patient by name or MRN..."
+                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+                />
+                {showPatientDropdown && patientSearch.trim() && (
+                  <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {patientsLoading ? (
+                      <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                        Searching...
+                      </div>
+                    ) : patients.length === 0 ? (
+                      <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                        No patients found
+                      </div>
+                    ) : (
+                      patients.map((patient) => (
+                        <button
+                          key={patient.id}
+                          onClick={() => handleSelectPatient(patient)}
+                          className="w-full text-left px-4 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                        >
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">
+                            {patient.lastName}, {patient.firstName}
+                          </span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                            MRN: {patient.mrn} | DOB: {patient.dateOfBirth}
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Waveform Visualization */}
+        {isRecordingActive && (
+          <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+            <div className="flex items-end justify-center gap-0.5 h-16" aria-label="Audio waveform">
+              {waveformData.map((value, index) => (
+                <div
+                  key={index}
+                  className={`w-1.5 rounded-full transition-all duration-75 ${
+                    recordingState === 'paused'
+                      ? 'bg-yellow-400 dark:bg-yellow-500'
+                      : 'bg-teal-500 dark:bg-teal-400'
+                  }`}
+                  style={{
+                    height: `${Math.max(4, value * 64)}px`,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Timer */}
+        {(isRecordingActive || recordingState === 'processing') && (
+          <div className="text-center">
+            <span className="text-3xl font-mono font-semibold text-gray-900 dark:text-white tabular-nums">
+              {formattedTime}
+            </span>
+          </div>
+        )}
+
+        {/* Controls */}
+        <div className="flex items-center justify-center gap-3">
+          {recordingState === 'idle' && (
+            <button
+              onClick={handleStartRecording}
+              disabled={!canStart}
+              className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <RecordDotIcon className="w-4 h-4" />
+              Start Recording
+            </button>
+          )}
+
+          {isRecordingActive && (
+            <>
+              <button
+                onClick={handlePauseResume}
+                className="flex items-center gap-2 px-5 py-2.5 bg-yellow-500 text-white font-medium rounded-lg hover:bg-yellow-600 transition-colors"
+              >
+                {recordingState === 'recording' ? (
+                  <>
+                    <PauseIcon className="w-4 h-4" />
+                    Pause
+                  </>
+                ) : (
+                  <>
+                    <PlayIcon className="w-4 h-4" />
+                    Resume
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={handleStopRecording}
+                className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 text-white font-medium rounded-lg hover:bg-teal-700 transition-colors"
+              >
+                <StopIcon className="w-4 h-4" />
+                Stop & Generate Note
+              </button>
+
+              <button
+                onClick={handleCancel}
+                className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <XIcon className="w-4 h-4" />
+                Cancel
+              </button>
+            </>
+          )}
+
+          {recordingState === 'processing' && (
+            <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
+              <SpinnerIcon className="w-5 h-5 animate-spin" />
+              <span className="text-sm font-medium">Processing transcription...</span>
+            </div>
+          )}
+        </div>
+
+        {/* Live Transcript Display */}
+        {(isRecordingActive || recordingState === 'processing') && (
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg">
+            <div className="px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Live Transcript
+              </h3>
+            </div>
+            <div className="max-h-64 overflow-y-auto p-4 space-y-3">
+              {transcriptLines.length === 0 ? (
+                <p className="text-sm text-gray-400 dark:text-gray-500 italic">
+                  Waiting for speech...
+                </p>
+              ) : (
+                transcriptLines.map((line, index) => (
+                  <div key={index} className="text-sm">
+                    <span className="font-medium text-teal-700 dark:text-teal-400">
+                      {line.speaker}:
+                    </span>{' '}
+                    <span className="text-gray-800 dark:text-gray-200">{line.text}</span>
+                  </div>
+                ))
+              )}
+              <div ref={transcriptEndRef} />
+            </div>
+          </div>
+        )}
+
+        {/* Error Display */}
+        {error && (
+          <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-2">
+            <ExclamationIcon className="w-5 h-5 text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+              {recordingState === 'error' && (
+                <button
+                  onClick={() => {
+                    setError(null);
+                    setRecordingState('idle');
+                    setElapsedSeconds(0);
+                    setTranscriptLines([]);
+                  }}
+                  className="mt-2 text-sm font-medium text-red-600 dark:text-red-400 hover:underline"
+                >
+                  Try Again
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function StatusBadge({ recordingState }: { readonly recordingState: RecordingState }) {
+  const config: Record<RecordingState, { label: string; dotClass: string; bgClass: string }> = {
+    idle: {
+      label: 'Ready',
+      dotClass: 'bg-gray-400',
+      bgClass: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300',
+    },
+    recording: {
+      label: 'Recording',
+      dotClass: 'bg-red-500 animate-pulse',
+      bgClass: 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300',
+    },
+    paused: {
+      label: 'Paused',
+      dotClass: 'bg-yellow-500',
+      bgClass: 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300',
+    },
+    processing: {
+      label: 'Processing',
+      dotClass: 'bg-blue-500 animate-pulse',
+      bgClass: 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+    },
+    error: {
+      label: 'Error',
+      dotClass: 'bg-red-600',
+      bgClass: 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300',
+    },
+  };
+
+  const { label, dotClass, bgClass } = config[recordingState];
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${bgClass}`}>
+      <span className={`w-2 h-2 rounded-full ${dotClass}`} />
+      {label}
+    </span>
+  );
+}
+
+function ConnectionBadge({ status }: { readonly status: 'disconnected' | 'connecting' | 'connected' }) {
+  if (status === 'disconnected') return null;
+
+  const isConnected = status === 'connected';
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+        isConnected
+          ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+          : 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
+      }`}
+    >
+      <span
+        className={`w-2 h-2 rounded-full ${
+          isConnected ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'
+        }`}
+      />
+      {isConnected ? 'Connected to Heidi' : 'Connecting...'}
+    </span>
+  );
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function formatDuration(totalSeconds: number): string {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  const pad = (n: number) => n.toString().padStart(2, '0');
+
+  return hours > 0
+    ? `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
+    : `${pad(minutes)}:${pad(seconds)}`;
+}
+
+// ─── Icons ──────────────────────────────────────────────────────────────────
+
+function MicrophoneIcon({ className }: { readonly className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"
+      />
+    </svg>
+  );
+}
+
+function RecordDotIcon({ className }: { readonly className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="currentColor">
+      <circle cx="8" cy="8" r="6" />
+    </svg>
+  );
+}
+
+function PauseIcon({ className }: { readonly className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25v13.5m-7.5-13.5v13.5" />
+    </svg>
+  );
+}
+
+function PlayIcon({ className }: { readonly className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z"
+      />
+    </svg>
+  );
+}
+
+function StopIcon({ className }: { readonly className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M5.25 7.5A2.25 2.25 0 017.5 5.25h9a2.25 2.25 0 012.25 2.25v9a2.25 2.25 0 01-2.25 2.25h-9a2.25 2.25 0 01-2.25-2.25v-9z"
+      />
+    </svg>
+  );
+}
+
+function XIcon({ className }: { readonly className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  );
+}
+
+function SpinnerIcon({ className }: { readonly className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      />
+    </svg>
+  );
+}
+
+function ExclamationIcon({ className }: { readonly className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
+      />
+    </svg>
+  );
+}

@@ -16,8 +16,9 @@ interface AuthenticatedSocket extends WebSocket {
 }
 
 interface IncomingMessage {
-  readonly type: 'audio_chunk' | 'stop' | 'ping';
-  readonly data?: string; // base64-encoded audio for audio_chunk
+  readonly type: 'auth' | 'audio_chunk' | 'stop' | 'ping';
+  readonly token?: string;  // JWT for auth message
+  readonly data?: string;   // base64-encoded audio for audio_chunk
 }
 
 interface OutgoingMessage {
@@ -181,49 +182,32 @@ export function setupTranscriptionWebSocket(server: HttpServer): WebSocketServer
 
     const sessionId = match[1];
 
-    // Extract token from query string or Authorization header
-    const token =
-      url.searchParams.get('token') ??
-      request.headers.authorization?.replace('Bearer ', '') ??
-      null;
-
-    if (!token) {
-      logger.warn('WebSocket: connection rejected — no auth token', { sessionId });
-      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-      socket.destroy();
-      return;
-    }
-
-    const userId = authenticateToken(token);
-    if (!userId) {
-      logger.warn('WebSocket: connection rejected — invalid token', { sessionId });
-      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-      socket.destroy();
-      return;
-    }
-
+    // Accept connection without auth — client must send auth message after connect
     wss.handleUpgrade(request, socket, head, (ws) => {
       const authenticatedWs = ws as AuthenticatedSocket;
-      authenticatedWs.userId = userId;
       authenticatedWs.sessionId = sessionId;
       authenticatedWs.isAlive = true;
+      // userId is set later via auth message
 
       wss.emit('connection', authenticatedWs, request);
     });
   });
 
+  const AUTH_TIMEOUT_MS = 10_000;
+
   wss.on('connection', (ws: AuthenticatedSocket) => {
     const sessionId = ws.sessionId!;
-    const userId = ws.userId!;
 
-    logger.info('WebSocket: client connected', { sessionId, userId });
-    addClient(sessionId, ws);
+    logger.info('WebSocket: client connected, awaiting auth', { sessionId });
 
-    // Send initial connection confirmation
-    ws.send(JSON.stringify({
-      type: 'status',
-      status: 'connected',
-    }));
+    // Require auth message within timeout
+    const authTimer = setTimeout(() => {
+      if (!ws.userId) {
+        logger.warn('WebSocket: auth timeout — closing connection', { sessionId });
+        ws.send(JSON.stringify({ type: 'error', error: 'Authentication timeout' }));
+        ws.close(4001, 'Authentication timeout');
+      }
+    }, AUTH_TIMEOUT_MS);
 
     ws.on('pong', () => {
       ws.isAlive = true;
@@ -232,6 +216,37 @@ export function setupTranscriptionWebSocket(server: HttpServer): WebSocketServer
     ws.on('message', async (rawData) => {
       try {
         const message: IncomingMessage = JSON.parse(rawData.toString());
+
+        // Before auth, only accept auth messages
+        if (!ws.userId) {
+          if (message.type !== 'auth') {
+            ws.send(JSON.stringify({ type: 'error', error: 'Authentication required' }));
+            return;
+          }
+
+          if (!message.token) {
+            ws.send(JSON.stringify({ type: 'error', error: 'Missing token' }));
+            ws.close(4001, 'Missing token');
+            clearTimeout(authTimer);
+            return;
+          }
+
+          const userId = authenticateToken(message.token);
+          if (!userId) {
+            logger.warn('WebSocket: auth failed — invalid token', { sessionId });
+            ws.send(JSON.stringify({ type: 'error', error: 'Invalid token' }));
+            ws.close(4001, 'Invalid token');
+            clearTimeout(authTimer);
+            return;
+          }
+
+          ws.userId = userId;
+          clearTimeout(authTimer);
+          addClient(sessionId, ws);
+          logger.info('WebSocket: client authenticated', { sessionId, userId });
+          ws.send(JSON.stringify({ type: 'status', status: 'connected' }));
+          return;
+        }
 
         switch (message.type) {
           case 'audio_chunk': {
@@ -268,8 +283,11 @@ export function setupTranscriptionWebSocket(server: HttpServer): WebSocketServer
     });
 
     ws.on('close', () => {
-      logger.info('WebSocket: client disconnected', { sessionId, userId });
-      removeClient(sessionId, ws);
+      clearTimeout(authTimer);
+      logger.info('WebSocket: client disconnected', { sessionId, userId: ws.userId });
+      if (ws.userId) {
+        removeClient(sessionId, ws);
+      }
     });
 
     ws.on('error', (error) => {

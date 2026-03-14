@@ -202,16 +202,18 @@ export function LiveRecording({
     const host = import.meta.env.VITE_API_URL
       ? new URL(import.meta.env.VITE_API_URL).host
       : window.location.host;
-    const token = localStorage.getItem('token');
-    const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
-    const wsUrl = `${protocol}//${host}/api/transcriptions/${sid}/live${tokenParam}`;
+    const wsUrl = `${protocol}//${host}/api/transcriptions/${sid}/live`;
 
     setConnectionStatus('connecting');
 
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      setConnectionStatus('connected');
+      // Authenticate via message instead of query string
+      const token = localStorage.getItem('token');
+      if (token) {
+        ws.send(JSON.stringify({ type: 'auth', token }));
+      }
       wsReconnectAttemptsRef.current = 0;
     };
 
@@ -229,7 +231,9 @@ export function LiveRecording({
             break;
           }
           case 'status': {
-            if (message.status === 'completed' || message.status === 'failed') {
+            if (message.status === 'connected') {
+              setConnectionStatus('connected');
+            } else if (message.status === 'completed' || message.status === 'failed') {
               setRecordingState(message.status === 'completed' ? 'processing' : 'error');
               if (message.error) {
                 setError(message.error);

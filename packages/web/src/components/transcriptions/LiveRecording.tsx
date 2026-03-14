@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { transcriptionsApi, TranscriptionSession } from '../../api/transcriptions';
 import { api, Patient } from '../../api/client';
 
@@ -17,6 +18,8 @@ interface LiveRecordingProps {
   readonly initialPatientId?: string;
   /** Pre-selected appointment ID */
   readonly appointmentId?: string;
+  /** Whether navigation originated from a patient chart */
+  readonly fromPatientChart?: boolean;
   /** Called when recording session completes successfully */
   readonly onSessionComplete?: (session: TranscriptionSession) => void;
   /** Called when user cancels recording */
@@ -35,6 +38,7 @@ const MAX_WS_RECONNECT_ATTEMPTS = 5;
 export function LiveRecording({
   initialPatientId,
   appointmentId,
+  fromPatientChart = false,
   onSessionComplete,
   onCancel,
 }: LiveRecordingProps) {
@@ -488,8 +492,34 @@ export function LiveRecording({
       </div>
 
       <div className="p-6 space-y-5">
-        {/* Patient Selector */}
-        {recordingState === 'idle' && (
+        {/* Back to Patient Chart link */}
+        {fromPatientChart && initialPatientId && (
+          <Link
+            to={`/patients/${initialPatientId}`}
+            className="inline-flex items-center gap-1.5 text-sm text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors"
+          >
+            <ArrowLeftIcon className="w-4 h-4" />
+            Back to Patient Chart
+          </Link>
+        )}
+
+        {/* Recording for Patient banner (when from patient chart) */}
+        {fromPatientChart && selectedPatient && (
+          <div className="flex items-center gap-3 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-lg px-4 py-3">
+            <UserIcon className="w-5 h-5 text-teal-600 dark:text-teal-400 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-teal-800 dark:text-teal-200">
+                Recording for: {selectedPatient.firstName} {selectedPatient.lastName}
+              </p>
+              <p className="text-xs text-teal-600 dark:text-teal-400">
+                MRN: {selectedPatient.mrn}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Patient Selector (hidden when pre-selected from patient chart) */}
+        {recordingState === 'idle' && !fromPatientChart && (
           <div ref={patientDropdownRef} className="relative">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
               Patient
@@ -849,6 +879,26 @@ function SpinnerIcon({ className }: { readonly className?: string }) {
         className="opacity-75"
         fill="currentColor"
         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      />
+    </svg>
+  );
+}
+
+function ArrowLeftIcon({ className }: { readonly className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+    </svg>
+  );
+}
+
+function UserIcon({ className }: { readonly className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
       />
     </svg>
   );

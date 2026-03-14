@@ -50,20 +50,38 @@ function DashboardView() {
 
 function NewRecordingView() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { addToast } = useToast();
+
+  // Parse patientId from query params (e.g. /transcriptions/new?patientId=xxx)
+  const searchParams = new URLSearchParams(location.search);
+  const patientId = searchParams.get('patientId') ?? undefined;
+  const fromPatientChart = Boolean(patientId);
 
   const handleSessionComplete = useCallback(
     (session: TranscriptionSession) => {
-      addToast('Recording completed. Note generated successfully.', 'success');
-      navigate(`/transcriptions/${session.id}`);
+      if (fromPatientChart && patientId) {
+        const name = session.patientFirstName && session.patientLastName
+          ? `${session.patientFirstName} ${session.patientLastName}`
+          : 'patient';
+        addToast(`Visit recorded successfully for ${name}.`, 'success');
+        navigate(`/patients/${patientId}`);
+      } else {
+        addToast('Recording completed. Note generated successfully.', 'success');
+        navigate(`/transcriptions/${session.id}`);
+      }
     },
-    [navigate, addToast],
+    [navigate, addToast, fromPatientChart, patientId],
   );
 
   const handleCancel = useCallback(() => {
     addToast('Recording cancelled.', 'info');
-    navigate('/transcriptions');
-  }, [navigate, addToast]);
+    if (fromPatientChart && patientId) {
+      navigate(`/patients/${patientId}`);
+    } else {
+      navigate('/transcriptions');
+    }
+  }, [navigate, addToast, fromPatientChart, patientId]);
 
   // Keyboard shortcuts for recording view
   useKeyboardShortcuts([
@@ -77,6 +95,8 @@ function NewRecordingView() {
   return (
     <ErrorBoundary>
       <LiveRecording
+        initialPatientId={patientId}
+        fromPatientChart={fromPatientChart}
         onSessionComplete={handleSessionComplete}
         onCancel={handleCancel}
       />

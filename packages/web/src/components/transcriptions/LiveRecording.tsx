@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback, CSSProperties } from 'react';
-import { List as VirtualList } from 'react-window';
+import { useState, useEffect, useRef, useCallback, CSSProperties, ReactElement } from 'react';
+import { List as VirtualList, useListRef } from 'react-window';
 import { Link } from 'react-router-dom';
 import { transcriptionsApi, TranscriptionSession } from '../../api/transcriptions';
 import { api, Patient } from '../../api/client';
@@ -43,7 +43,6 @@ interface LiveRecordingProps {
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const WAVEFORM_BAR_COUNT = 48;
 const AUDIO_CHUNK_INTERVAL_MS = 5000;
 const WS_RECONNECT_DELAY_MS = 3000;
 const MAX_WS_RECONNECT_ATTEMPTS = 5;
@@ -87,7 +86,7 @@ export function LiveRecording({
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const wsReconnectAttemptsRef = useRef(0);
-  const transcriptListRef = useRef<InstanceType<typeof VirtualList> | null>(null);
+  const transcriptListRef = useListRef();
   const patientDropdownRef = useRef<HTMLDivElement | null>(null);
 
   // ── Patient search with debounce ────────────────────────────────────────
@@ -136,7 +135,10 @@ export function LiveRecording({
   // Auto-scroll transcript to latest line
   useEffect(() => {
     if (transcriptLines.length > 0) {
-      transcriptListRef.current?.scrollToItem(transcriptLines.length - 1, 'end');
+      transcriptListRef.current?.scrollToRow({
+        index: transcriptLines.length - 1,
+        align: 'end',
+      });
     }
   }, [transcriptLines]);
 
@@ -433,7 +435,6 @@ export function LiveRecording({
     setRecordingState('idle');
     setElapsedSeconds(0);
     setTranscriptLines([]);
-    setWaveformData(Array.from({ length: WAVEFORM_BAR_COUNT }, () => 0));
 
     if (sessionId) {
       await transcriptionsApi.updateSessionStatus(sessionId, 'cancelled');
@@ -577,25 +578,12 @@ export function LiveRecording({
           </div>
         )}
 
-        {/* Waveform Visualization */}
+        {/* Waveform Visualization (DOM-driven, no React re-renders) */}
         {isRecordingActive && (
-          <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
-            <div className="flex items-end justify-center gap-0.5 h-16" aria-label="Audio waveform">
-              {waveformData.map((value, index) => (
-                <div
-                  key={index}
-                  className={`w-1.5 rounded-full transition-all duration-75 ${
-                    recordingState === 'paused'
-                      ? 'bg-yellow-400 dark:bg-yellow-500'
-                      : 'bg-teal-500 dark:bg-teal-400'
-                  }`}
-                  style={{
-                    height: `${Math.max(4, value * 64)}px`,
-                  }}
-                />
-              ))}
-            </div>
-          </div>
+          <WaveformVisualizer
+            analyser={activeAnalyser}
+            isPaused={recordingState === 'paused'}
+          />
         )}
 
         {/* Timer */}
@@ -607,13 +595,15 @@ export function LiveRecording({
           </div>
         )}
 
-        {/* Controls */}
-        <div className="flex flex-wrap items-center justify-center gap-3">
+        {/* Controls — touch-friendly on mobile */}
+        <div className={isMobile ? 'flex flex-wrap items-center justify-center gap-2' : 'flex items-center justify-center gap-3'}>
           {recordingState === 'idle' && (
             <button
               onClick={handleStartRecording}
               disabled={!canStart}
-              className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-h-[44px]"
+              className={isMobile
+                ? 'flex items-center justify-center gap-2 w-full px-6 py-4 text-base bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 active:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-h-[48px]'
+                : 'flex items-center gap-2 px-6 py-3 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-h-[44px]'}
             >
               <RecordDotIcon className="w-5 h-5" />
               Start Recording
@@ -624,7 +614,9 @@ export function LiveRecording({
             <>
               <button
                 onClick={handlePauseResume}
-                className="flex items-center gap-2 px-5 py-3 bg-yellow-500 text-white font-medium rounded-lg hover:bg-yellow-600 transition-colors min-h-[44px]"
+                className={isMobile
+                  ? 'flex flex-1 items-center justify-center gap-2 px-4 py-3.5 bg-yellow-500 text-white font-medium rounded-lg hover:bg-yellow-600 active:bg-yellow-700 transition-colors min-h-[48px]'
+                  : 'flex items-center gap-2 px-5 py-3 bg-yellow-500 text-white font-medium rounded-lg hover:bg-yellow-600 transition-colors min-h-[44px]'}
               >
                 {recordingState === 'recording' ? (
                   <>
@@ -641,15 +633,19 @@ export function LiveRecording({
 
               <button
                 onClick={handleStopRecording}
-                className="flex items-center gap-2 px-5 py-3 bg-teal-600 text-white font-medium rounded-lg hover:bg-teal-700 transition-colors min-h-[44px]"
+                className={isMobile
+                  ? 'flex flex-1 items-center justify-center gap-2 px-4 py-3.5 bg-teal-600 text-white font-medium rounded-lg hover:bg-teal-700 active:bg-teal-800 transition-colors min-h-[48px]'
+                  : 'flex items-center gap-2 px-5 py-3 bg-teal-600 text-white font-medium rounded-lg hover:bg-teal-700 transition-colors min-h-[44px]'}
               >
                 <StopIcon className="w-5 h-5" />
-                Stop & Generate Note
+                {isMobile ? 'Stop' : 'Stop & Generate Note'}
               </button>
 
               <button
                 onClick={handleCancel}
-                className="flex items-center gap-2 px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors min-h-[44px]"
+                className={isMobile
+                  ? 'flex items-center justify-center gap-2 w-full px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 transition-colors min-h-[44px]'
+                  : 'flex items-center gap-2 px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors min-h-[44px]'}
               >
                 <XIcon className="w-4 h-4" />
                 Cancel
@@ -680,19 +676,19 @@ export function LiveRecording({
                 </p>
               ) : (
                 <VirtualList
-                  ref={transcriptListRef}
-                  height={Math.min(
-                    TRANSCRIPT_VISIBLE_HEIGHT,
-                    transcriptLines.length * TRANSCRIPT_LINE_HEIGHT
-                  )}
-                  itemCount={transcriptLines.length}
-                  itemSize={TRANSCRIPT_LINE_HEIGHT}
-                  width="100%"
-                  itemData={transcriptLines}
+                  listRef={transcriptListRef}
+                  style={{
+                    height: Math.min(
+                      TRANSCRIPT_VISIBLE_HEIGHT,
+                      transcriptLines.length * TRANSCRIPT_LINE_HEIGHT
+                    ),
+                  }}
+                  rowCount={transcriptLines.length}
+                  rowHeight={TRANSCRIPT_LINE_HEIGHT}
+                  rowComponent={TranscriptRow}
+                  rowProps={{ lines: transcriptLines }}
                   overscanCount={5}
-                >
-                  {TranscriptRow}
-                </VirtualList>
+                />
               )}
             </div>
           </div>
@@ -789,8 +785,12 @@ function ConnectionBadge({ status }: { readonly status: 'disconnected' | 'connec
   );
 }
 
-function TranscriptRow({ index, style, data }: { readonly index: number; readonly style: CSSProperties; readonly data: readonly TranscriptLine[] }) {
-  const line = data[index];
+interface TranscriptRowProps {
+  readonly lines: readonly TranscriptLine[];
+}
+
+function TranscriptRow({ index, style, lines }: { index: number; style: CSSProperties } & TranscriptRowProps): ReactElement {
+  const line = lines[index];
   return (
     <div style={style} className="text-sm flex items-center">
       <span className="font-medium text-teal-700 dark:text-teal-400 flex-shrink-0">

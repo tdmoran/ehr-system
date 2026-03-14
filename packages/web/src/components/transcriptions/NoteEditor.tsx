@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { transcriptionsApi, TranscriptionNote, TranscriptionSession } from '../../api/transcriptions';
 import { XIcon, CheckIcon, SpinnerIcon } from './transcription-icons';
 
@@ -179,6 +180,8 @@ function extractSuggestions(transcript: string): AiSuggestion[] {
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export function NoteEditor({ sessionId, onClose, onFinalized }: NoteEditorProps) {
+  const isMobile = useIsMobile();
+
   const [session, setSession] = useState<TranscriptionSession | null>(null);
   const [note, setNote] = useState<TranscriptionNote | null>(null);
   const [fields, setFields] = useState<NoteFields>(EMPTY_FIELDS);

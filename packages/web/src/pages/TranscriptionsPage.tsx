@@ -1,18 +1,34 @@
-import { useCallback } from 'react';
+import { lazy, Suspense, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { useIsMobile } from '../hooks/useIsMobile';
 import TranscriptionLayout from '../components/transcriptions/TranscriptionLayout';
 import { TranscriptionDashboard } from '../components/transcriptions/TranscriptionDashboard';
-import { LiveRecording } from '../components/transcriptions/LiveRecording';
-import { NoteEditor } from '../components/transcriptions/NoteEditor';
 import ErrorBoundary from '../components/ErrorBoundary';
 import type { TranscriptionSession } from '../api/transcriptions';
+
+// Lazy-loaded heavy components (code splitting for mobile performance)
+const LiveRecording = lazy(() =>
+  import('../components/transcriptions/LiveRecording').then(m => ({ default: m.LiveRecording }))
+);
+const NoteEditor = lazy(() =>
+  import('../components/transcriptions/NoteEditor').then(m => ({ default: m.NoteEditor }))
+);
+
+function LoadingFallback() {
+  return (
+    <div className="flex items-center justify-center py-20">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400" />
+    </div>
+  );
+}
 
 // ─── Sub-route views ────────────────────────────────────────────────────────
 
 function DashboardView() {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const handleCreateSession = useCallback(() => {
     navigate('/transcriptions/new');
@@ -32,9 +48,9 @@ function DashboardView() {
     [navigate],
   );
 
-  // Keyboard shortcuts for dashboard view
+  // Keyboard shortcuts — disabled on mobile (no physical keyboard)
   useKeyboardShortcuts([
-    { key: 'n', ctrl: true, handler: handleCreateSession },
+    { key: 'n', ctrl: true, handler: handleCreateSession, enabled: !isMobile },
   ]);
 
   return (
@@ -52,6 +68,7 @@ function NewRecordingView() {
   const navigate = useNavigate();
   const location = useLocation();
   const { addToast } = useToast();
+  const isMobile = useIsMobile();
 
   // Parse patientId from query params (e.g. /transcriptions/new?patientId=xxx)
   const searchParams = new URLSearchParams(location.search);
@@ -83,23 +100,26 @@ function NewRecordingView() {
     }
   }, [navigate, addToast, fromPatientChart, patientId]);
 
-  // Keyboard shortcuts for recording view
+  // Keyboard shortcuts — disabled on mobile
   useKeyboardShortcuts([
     {
       key: 'n',
       ctrl: true,
       handler: () => navigate('/transcriptions/new'),
+      enabled: !isMobile,
     },
   ]);
 
   return (
     <ErrorBoundary>
-      <LiveRecording
-        initialPatientId={patientId}
-        fromPatientChart={fromPatientChart}
-        onSessionComplete={handleSessionComplete}
-        onCancel={handleCancel}
-      />
+      <Suspense fallback={<LoadingFallback />}>
+        <LiveRecording
+          initialPatientId={patientId}
+          fromPatientChart={fromPatientChart}
+          onSessionComplete={handleSessionComplete}
+          onCancel={handleCancel}
+        />
+      </Suspense>
     </ErrorBoundary>
   );
 }
@@ -108,6 +128,7 @@ function SessionDetailView() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { addToast } = useToast();
+  const isMobile = useIsMobile();
 
   const handleClose = useCallback(() => {
     navigate('/transcriptions');
@@ -118,9 +139,9 @@ function SessionDetailView() {
     navigate('/transcriptions');
   }, [navigate, addToast]);
 
-  // Keyboard shortcuts for editor view
+  // Keyboard shortcuts — disabled on mobile
   useKeyboardShortcuts([
-    { key: 'n', ctrl: true, handler: () => navigate('/transcriptions/new') },
+    { key: 'n', ctrl: true, handler: () => navigate('/transcriptions/new'), enabled: !isMobile },
   ]);
 
   if (!id) {
@@ -133,13 +154,15 @@ function SessionDetailView() {
 
   return (
     <ErrorBoundary>
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden min-h-[500px]">
-        <NoteEditor
-          sessionId={id}
-          onClose={handleClose}
-          onFinalized={handleFinalized}
-        />
-      </div>
+      <Suspense fallback={<LoadingFallback />}>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden min-h-[500px]">
+          <NoteEditor
+            sessionId={id}
+            onClose={handleClose}
+            onFinalized={handleFinalized}
+          />
+        </div>
+      </Suspense>
     </ErrorBoundary>
   );
 }

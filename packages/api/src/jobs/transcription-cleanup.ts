@@ -29,9 +29,12 @@ export async function cleanupStaleSessions(): Promise<number> {
            error_message = 'Session timed out — automatically cleaned up',
            ended_at = NOW(),
            updated_at = NOW()
-       WHERE status IN ('pending', 'recording')
-         AND created_at < NOW() - INTERVAL '1 hour' * $1
-       LIMIT $2
+       WHERE id IN (
+         SELECT id FROM transcription_sessions
+         WHERE status IN ('pending', 'recording')
+           AND created_at < NOW() - INTERVAL '1 hour' * $1
+         LIMIT $2
+       )
        RETURNING id`,
       [cutoffHours, MAX_CLEANUP_BATCH]
     );

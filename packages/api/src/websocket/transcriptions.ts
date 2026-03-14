@@ -1,6 +1,7 @@
 import { Server as HttpServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
-import { verify } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
+const { verify } = jwt;
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import * as whisperService from '../services/whisper-service.js';
@@ -163,8 +164,6 @@ function startHeartbeat(wss: WebSocketServer): NodeJS.Timeout {
 
 export function setupTranscriptionWebSocket(server: HttpServer): WebSocketServer {
   const wss = new WebSocketServer({
-    server,
-    path: undefined, // We handle path matching manually below
     noServer: true,
   });
 

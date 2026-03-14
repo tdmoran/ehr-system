@@ -1,10 +1,13 @@
+import { createServer } from 'http';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import { config } from './config/index.js';
+import { config, validateTranscriptionEnv } from './config/index.js';
 import routes from './routes/index.js';
 import { logger } from './utils/logger.js';
 import { errorHandler } from './errors/index.js';
+import { setupTranscriptionWebSocket } from './websocket/transcriptions.js';
+import { startCleanupJob } from './jobs/transcription-cleanup.js';
 
 const app = express();
 
@@ -66,11 +69,22 @@ app.use('/api', routes);
 // Centralized error handler — must be registered after all routes
 app.use(errorHandler);
 
+// Validate transcription environment variables
+validateTranscriptionEnv();
+
+// Create HTTP server and attach WebSocket
+const server = createServer(app);
+setupTranscriptionWebSocket(server);
+
+// Start background jobs
+startCleanupJob();
+
 // Start server
 const port = process.env.PORT || config.port;
-app.listen(port, () => {
+server.listen(port, () => {
   logger.info(`API server running on port ${port}`);
 });
 
 // Export for Vercel
 export default app;
+export { server };

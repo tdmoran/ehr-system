@@ -198,7 +198,9 @@ export function LiveRecording({
     const host = import.meta.env.VITE_API_URL
       ? new URL(import.meta.env.VITE_API_URL).host
       : window.location.host;
-    const wsUrl = `${protocol}//${host}/api/transcriptions/${sid}/live`;
+    const token = localStorage.getItem('token');
+    const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
+    const wsUrl = `${protocol}//${host}/api/transcriptions/${sid}/live${tokenParam}`;
 
     setConnectionStatus('connecting');
 
@@ -212,20 +214,31 @@ export function LiveRecording({
     ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
-        if (message.type === 'transcript') {
-          const line: TranscriptLine = {
-            speaker: message.speaker ?? 'Unknown',
-            text: message.text ?? '',
-            timestamp: message.timestamp ?? Date.now(),
-          };
-          setTranscriptLines((prev) => [...prev, line]);
-        } else if (message.type === 'status') {
-          if (message.status === 'completed' || message.status === 'failed') {
-            setRecordingState(message.status === 'completed' ? 'processing' : 'error');
-            if (message.error) {
-              setError(message.error);
-            }
+        switch (message.type) {
+          case 'transcript': {
+            const line: TranscriptLine = {
+              speaker: message.speaker ?? 'Unknown',
+              text: message.text ?? '',
+              timestamp: message.timestamp ?? Date.now(),
+            };
+            setTranscriptLines((prev) => [...prev, line]);
+            break;
           }
+          case 'status': {
+            if (message.status === 'completed' || message.status === 'failed') {
+              setRecordingState(message.status === 'completed' ? 'processing' : 'error');
+              if (message.error) {
+                setError(message.error);
+              }
+            }
+            break;
+          }
+          case 'error': {
+            setError(message.error ?? 'Transcription error');
+            break;
+          }
+          default:
+            break;
         }
       } catch {
         // Ignore malformed messages
@@ -234,14 +247,16 @@ export function LiveRecording({
 
     ws.onclose = () => {
       setConnectionStatus('disconnected');
-      // Auto-reconnect if still recording
+      // Auto-reconnect with exponential backoff if still recording
       if (wsReconnectAttemptsRef.current < MAX_WS_RECONNECT_ATTEMPTS) {
+        const attempt = wsReconnectAttemptsRef.current;
         wsReconnectAttemptsRef.current += 1;
+        const delay = WS_RECONNECT_DELAY_MS * Math.pow(1.5, attempt);
         setTimeout(() => {
           if (mediaRecorderRef.current?.state === 'recording') {
             connectWebSocket(sid);
           }
-        }, WS_RECONNECT_DELAY_MS);
+        }, delay);
       }
     };
 

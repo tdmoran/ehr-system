@@ -42,4 +42,34 @@ export const config = {
     apiKey: process.env.HEIDI_API_KEY || '',
     enabled: process.env.HEIDI_ENABLED === 'true',
   },
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY || '',
+  },
+  anthropic: {
+    apiKey: process.env.ANTHROPIC_API_KEY || '',
+  },
 };
+
+/**
+ * Validate that required API keys for transcription services are present.
+ * Logs warnings for missing keys but does not throw — services degrade gracefully.
+ */
+export function validateTranscriptionEnv(): void {
+  const warnings: string[] = [];
+
+  if (!process.env.OPENAI_API_KEY) {
+    warnings.push('OPENAI_API_KEY is not set — Whisper speech-to-text will be unavailable');
+  }
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    warnings.push('ANTHROPIC_API_KEY is not set — AI note generation will be unavailable');
+  }
+
+  if (!process.env.OPENAI_API_KEY && !process.env.ANTHROPIC_API_KEY) {
+    warnings.push('No AI API keys configured — transcription will run in offline/fallback mode');
+  }
+
+  for (const warning of warnings) {
+    console.warn(`[CONFIG] ${warning}`);
+  }
+}

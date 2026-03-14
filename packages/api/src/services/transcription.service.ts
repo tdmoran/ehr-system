@@ -215,6 +215,10 @@ export async function createSession(
   };
 }
 
+/**
+ * Finds a transcription session by its UUID.
+ * @returns The session or null if not found
+ */
 export async function findSessionById(id: string): Promise<TranscriptionSession | null> {
   const result = await query<Record<string, unknown>>(
     `SELECT * FROM transcription_sessions WHERE id = $1`,
@@ -223,6 +227,9 @@ export async function findSessionById(id: string): Promise<TranscriptionSession 
   return result.rows.length > 0 ? mapSessionRow(result.rows[0]) : null;
 }
 
+/**
+ * Lists all transcription sessions for a patient, ordered by most recent first.
+ */
 export async function findSessionsByPatientId(patientId: string): Promise<TranscriptionSession[]> {
   const result = await query<Record<string, unknown>>(
     `SELECT * FROM transcription_sessions WHERE patient_id = $1 ORDER BY created_at DESC`,

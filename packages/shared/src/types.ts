@@ -306,6 +306,118 @@ export interface CreateTaskInput {
   taskText: string;
 }
 
+// Transcription types
+export type TranscriptionStatus = 'pending' | 'recording' | 'processing' | 'completed' | 'failed' | 'cancelled';
+export type TranscriptionProvider = 'heidi' | 'built_in';
+export type TranscriptionTemplateType = 'soap' | 'progress_note' | 'referral_letter' | 'operative_note' | 'assessment_report' | 'custom';
+export type ConsentMethod = 'verbal' | 'written' | 'electronic';
+export type NoteReviewStatus = 'draft' | 'finalized';
+
+export interface TranscriptionSession {
+  id: string;
+  encounterId: string | null;
+  appointmentId: string | null;
+  patientId: string;
+  providerId: string;
+  externalSessionId: string | null;
+  externalProvider: TranscriptionProvider;
+  status: TranscriptionStatus;
+  startedAt: string | null;
+  endedAt: string | null;
+  durationSeconds: number | null;
+  templateUsed: string | null;
+  language: string;
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SuggestedCode {
+  code: string;
+  description: string;
+  confidence: number;
+}
+
+export interface TranscriptionNote {
+  id: string;
+  sessionId: string;
+  chiefComplaint: string | null;
+  subjective: string | null;
+  objective: string | null;
+  assessment: string | null;
+  plan: string | null;
+  fullTranscript: string | null;
+  summary: string | null;
+  suggestedIcdCodes: SuggestedCode[];
+  suggestedCptCodes: SuggestedCode[];
+  confidenceScore: number | null;
+  wordCount: number | null;
+  speakerCount: number | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  accepted: boolean | null;
+  reviewStatus: NoteReviewStatus;
+  modifications: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TranscriptionTemplate {
+  id: string;
+  providerId: string;
+  name: string;
+  templateType: TranscriptionTemplateType;
+  sections: TemplateSection[];
+  isDefault: boolean;
+  externalTemplateId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TemplateSection {
+  name: string;
+  prompt: string;
+  required: boolean;
+}
+
+export interface TranscriptionConsent {
+  id: string;
+  patientId: string;
+  providerId: string;
+  sessionId: string | null;
+  consentGiven: boolean;
+  consentMethod: ConsentMethod;
+  consentText: string | null;
+  signatureDataUrl: string | null;
+  notes: string | null;
+  recordedAt: string;
+}
+
+export interface RecordConsentInput {
+  patientId: string;
+  sessionId?: string;
+  consentGiven: boolean;
+  consentMethod: ConsentMethod;
+  consentText?: string;
+  signatureDataUrl?: string;
+  notes?: string;
+}
+
+export interface TranscriptionSessionWithNote {
+  session: TranscriptionSession;
+  note: TranscriptionNote | null;
+}
+
+export interface NoteUpdateInput {
+  chiefComplaint?: string;
+  subjective?: string;
+  objective?: string;
+  assessment?: string;
+  plan?: string;
+  summary?: string;
+  reviewStatus?: NoteReviewStatus;
+}
+
 // API types
 export interface LoginRequest {
   email: string;

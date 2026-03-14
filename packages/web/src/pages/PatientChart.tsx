@@ -1,6 +1,7 @@
 import { useState, useEffect, FormEvent, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { usePatient } from '../hooks/usePatients';
+import { useAuth } from '../context/AuthContext';
 import { api, Document, CreatePatientInput, OcrResult, Appointment, Encounter } from '../api/client';
 import { ExtractedFieldsReview } from '../components/ocr/ExtractedFieldsReview';
 import { BookingModal } from '../components/patient-chart/BookingModal';
@@ -11,14 +12,17 @@ import { AppointmentSidebar } from '../components/patient-chart/AppointmentSideb
 import { DocumentsTabContent } from '../components/patient-chart/DocumentsTabContent';
 import { DocumentListPanel } from '../components/patient-chart/DocumentListPanel';
 import { NotesTabContent } from '../components/patient-chart/NotesTabContent';
+import { PatientTranscriptionHistory } from '../components/patient-chart/PatientTranscriptionHistory';
 
 export default function PatientChart() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const { patient, loading: patientLoading, refetch: refetchPatient } = usePatient(id!);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
   const [encounters, setEncounters] = useState<Encounter[]>([]);
-  const [activeTab, setActiveTab] = useState<'documents' | 'letters' | 'operative-notes' | 'clinic-notes' | 'notes'>('documents');
+  const [activeTab, setActiveTab] = useState<'documents' | 'letters' | 'operative-notes' | 'clinic-notes' | 'notes' | 'ai-visits'>('documents');
   const [notes, setNotes] = useState<string>('');
   const [notesSaving, setNotesSaving] = useState(false);
   const [notesSaved, setNotesSaved] = useState(false);

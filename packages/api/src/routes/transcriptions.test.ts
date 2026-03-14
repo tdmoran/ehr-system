@@ -6,6 +6,8 @@ import request from 'supertest';
 
 const {
   mockTranscriptionService,
+  mockPatientService,
+  mockDbQuery,
   mockLogAudit,
 } = vi.hoisted(() => ({
   mockTranscriptionService: {
@@ -27,10 +29,19 @@ const {
     recordConsent: vi.fn(),
     findConsentsByPatientId: vi.fn(),
   },
+  mockPatientService: {
+    findById: vi.fn(),
+  },
+  mockDbQuery: vi.fn(),
   mockLogAudit: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../services/transcription.service.js', () => mockTranscriptionService);
+vi.mock('../services/patient.service.js', () => mockPatientService);
+
+vi.mock('../db/index.js', () => ({
+  query: (...args: unknown[]) => mockDbQuery(...args),
+}));
 
 vi.mock('../middleware/audit.js', () => ({
   logAudit: (...args: unknown[]) => mockLogAudit(...args),
@@ -110,6 +121,13 @@ const MOCK_NOTE = {
   objective: 'Exam shows...',
   assessment: 'Pharyngitis',
   plan: 'Antibiotics',
+};
+
+const MOCK_PATIENT = {
+  id: 'patient-1',
+  firstName: 'John',
+  lastName: 'Doe',
+  mrn: 'MRN001',
 };
 
 const MOCK_TEMPLATE = {
@@ -306,7 +324,9 @@ describe('transcription routes', () => {
   // ─── GET /sessions/patient/:patientId ─────────────────────────────────
 
   describe('GET /api/transcriptions/sessions/patient/:patientId', () => {
-    it('returns sessions for a patient', async () => {
+    it('returns sessions for a patient with care relationship', async () => {
+      mockPatientService.findById.mockResolvedValueOnce(MOCK_PATIENT);
+      // Sessions fetched once; passed to both auth check and response
       mockTranscriptionService.findSessionsByPatientId.mockResolvedValueOnce([
         MOCK_SESSION,
       ]);
@@ -317,9 +337,62 @@ describe('transcription routes', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.sessions).toHaveLength(1);
+      expect(mockPatientService.findById).toHaveBeenCalledWith('patient-1');
+    });
+
+    it('returns 404 when patient does not exist', async () => {
+      mockPatientService.findById.mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .get('/api/transcriptions/sessions/patient/nonexistent-id')
+        .set('x-test-role', 'provider');
+
+      expect(res.status).toBe(404);
+      expect(mockTranscriptionService.findSessionsByPatientId).not.toHaveBeenCalled();
+    });
+
+    it('returns 403 when provider has no care relationship', async () => {
+      mockPatientService.findById.mockResolvedValueOnce(MOCK_PATIENT);
+      // No sessions with this provider
+      mockTranscriptionService.findSessionsByPatientId.mockResolvedValueOnce([]);
+      // No appointments either
+      mockDbQuery.mockResolvedValueOnce({ rows: [] });
+
+      const res = await request(app)
+        .get('/api/transcriptions/sessions/patient/patient-1')
+        .set('x-test-role', 'provider');
+
+      expect(res.status).toBe(403);
+    });
+
+    it('allows admin access without care relationship', async () => {
+      mockPatientService.findById.mockResolvedValueOnce(MOCK_PATIENT);
+      // Admin bypasses care relationship check — only the data fetch call happens
+      mockTranscriptionService.findSessionsByPatientId.mockResolvedValueOnce([]);
+
+      const res = await request(app)
+        .get('/api/transcriptions/sessions/patient/patient-1')
+        .set('x-test-role', 'admin');
+
+      expect(res.status).toBe(200);
+    });
+
+    it('allows access via appointment relationship', async () => {
+      mockPatientService.findById.mockResolvedValueOnce(MOCK_PATIENT);
+      // No sessions with this provider
+      mockTranscriptionService.findSessionsByPatientId.mockResolvedValueOnce([]);
+      // But has an appointment
+      mockDbQuery.mockResolvedValueOnce({ rows: [{ '?column?': 1 }] });
+
+      const res = await request(app)
+        .get('/api/transcriptions/sessions/patient/patient-1')
+        .set('x-test-role', 'provider');
+
+      expect(res.status).toBe(200);
     });
 
     it('logs audit with patient ID and count', async () => {
+      mockPatientService.findById.mockResolvedValueOnce(MOCK_PATIENT);
       mockTranscriptionService.findSessionsByPatientId.mockResolvedValueOnce([
         MOCK_SESSION,
       ]);

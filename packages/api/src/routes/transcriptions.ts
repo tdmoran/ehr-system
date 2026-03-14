@@ -7,6 +7,7 @@ import { validate } from '../middleware/validate.js';
 import { logAudit } from '../middleware/audit.js';
 import { asyncHandler, NotFoundError, BadRequestError, ForbiddenError } from '../errors/index.js';
 import { config } from '../config/index.js';
+import { query as dbQuery } from '../db/index.js';
 
 const router = Router();
 
@@ -78,6 +79,48 @@ const recordConsentSchema = z.object({
   consentMethod: z.enum(['verbal', 'written', 'electronic']),
   notes: z.string().max(1000).optional(),
 });
+
+// ─── Patient Authorization ───────────────────────────────────────────────────
+
+interface AuthUser {
+  id: string;
+  role: string;
+}
+
+/**
+ * Checks whether the requesting user can access transcription sessions
+ * for a given patient. Admins have unrestricted access. Providers and
+ * nurses must have an existing care relationship — at least one
+ * appointment or transcription session with that patient.
+ *
+ * Accepts optional pre-fetched sessions to avoid duplicate queries when
+ * the caller already has them.
+ */
+async function canAccessPatientTranscriptions(
+  user: AuthUser,
+  patientId: string,
+  existingSessions?: { providerId: string }[]
+): Promise<boolean> {
+  if (user.role === 'admin') {
+    return true;
+  }
+
+  const sessions = existingSessions
+    ?? await transcriptionService.findSessionsByPatientId(patientId);
+  const hasSessionRelationship = sessions.some(
+    (s) => s.providerId === user.id
+  );
+  if (hasSessionRelationship) {
+    return true;
+  }
+
+  const { rows } = await dbQuery(
+    `SELECT 1 FROM appointments WHERE patient_id = $1 AND provider_id = $2 LIMIT 1`,
+    [patientId, user.id]
+  );
+
+  return rows.length > 0;
+}
 
 // ─── Session Endpoints ───────────────────────────────────────────────────────
 
@@ -160,6 +203,11 @@ router.get(
     if (!patient) throw new NotFoundError('Patient not found');
 
     const sessions = await transcriptionService.findSessionsByPatientId(req.params.patientId);
+
+    const hasAccess = await canAccessPatientTranscriptions(req.user!, req.params.patientId, sessions);
+    if (!hasAccess) {
+      throw new ForbiddenError('You do not have a care relationship with this patient');
+    }
 
     await logAudit(req, {
       action: 'view',

@@ -405,8 +405,11 @@ export async function acceptNote(
       `UPDATE transcription_notes
        SET reviewed_by = $1, reviewed_at = NOW(), accepted = TRUE,
            modifications = $3, updated_at = NOW()
-       WHERE session_id = $2
-       ORDER BY created_at DESC LIMIT 1
+       WHERE id = (
+         SELECT id FROM transcription_notes
+         WHERE session_id = $2
+         ORDER BY created_at DESC LIMIT 1
+       )
        RETURNING *`,
       [reviewerId, sessionId, modifications ? JSON.stringify(modifications) : null]
     );

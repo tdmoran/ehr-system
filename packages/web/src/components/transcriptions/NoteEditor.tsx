@@ -386,9 +386,9 @@ export function NoteEditor({ sessionId, onClose, onFinalized }: NoteEditorProps)
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-900">
       {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-        <div className="flex items-center gap-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Note Editor</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 md:px-6 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+        <div className="flex items-center gap-2 md:gap-4">
+          <h2 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white">Note Editor</h2>
           <SaveStatusBadge status={saveStatus} />
         </div>
 
@@ -432,10 +432,10 @@ export function NoteEditor({ sessionId, onClose, onFinalized }: NoteEditorProps)
         </div>
       )}
 
-      {/* ── Main content: side-by-side ──────────────────────────────────────── */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* LEFT: Raw transcript */}
-        <div className="w-1/2 flex flex-col border-r border-gray-200 dark:border-gray-700">
+      {/* ── Main content: stacked on mobile, side-by-side on md+ ────────────── */}
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        {/* LEFT / TOP: Raw transcript */}
+        <div className="w-full md:w-1/2 flex flex-col border-b md:border-b-0 md:border-r border-gray-200 dark:border-gray-700 max-h-[40vh] md:max-h-none">
           <div className="px-4 py-2 bg-gray-50 dark:bg-gray-800/30 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -464,8 +464,8 @@ export function NoteEditor({ sessionId, onClose, onFinalized }: NoteEditorProps)
           </div>
         </div>
 
-        {/* RIGHT: Structured note editor */}
-        <div className="w-1/2 flex flex-col">
+        {/* RIGHT / BOTTOM: Structured note editor */}
+        <div className="w-full md:w-1/2 flex flex-col">
           <div className="px-4 py-2 bg-gray-50 dark:bg-gray-800/30 border-b border-gray-200 dark:border-gray-700">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
               Structured Note — {TEMPLATE_CONFIGS[template].label}
@@ -506,7 +506,7 @@ export function NoteEditor({ sessionId, onClose, onFinalized }: NoteEditorProps)
       )}
 
       {/* ── Footer actions ──────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 md:px-6 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
         <div className="flex items-center gap-2">
           {session && (
             <span className="text-xs text-gray-500 dark:text-gray-400">

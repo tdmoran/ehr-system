@@ -334,6 +334,12 @@ export async function generateNote(
   const session = await findSessionById(sessionId);
   if (!session) throw new Error('Session not found');
 
+  // Verify patient has given valid consent for AI transcription
+  const consentValid = await hasValidConsent(session.patientId);
+  if (!consentValid) {
+    throw new Error('Patient has not provided valid consent for AI transcription');
+  }
+
   if (!session.externalSessionId) {
     throw new Error('No external session ID available for note generation');
   }
@@ -393,10 +399,18 @@ export async function generateNote(
  * @param encounterId - Optional existing encounter UUID to update instead of creating new
  * @returns The created or updated encounter
  */
+interface NoteModifications {
+  readonly chiefComplaint?: string;
+  readonly subjective?: string;
+  readonly objective?: string;
+  readonly assessment?: string;
+  readonly plan?: string;
+}
+
 export async function acceptNote(
   sessionId: string,
   reviewerId: string,
-  modifications?: Record<string, unknown>,
+  modifications?: NoteModifications,
   encounterId?: string
 ): Promise<{ encounter: Record<string, unknown> }> {
   return withTransaction(async (client) => {
@@ -736,6 +750,23 @@ export async function recordConsent(input: RecordConsentInput): Promise<Transcri
   );
 
   return mapConsentRow(result.rows[0]);
+}
+
+/**
+ * Checks whether a patient has a valid (most recent) consent for AI transcription.
+ * Returns true only if the most recent consent record has `consent_given = true`.
+ */
+export async function hasValidConsent(patientId: string): Promise<boolean> {
+  const result = await query<Record<string, unknown>>(
+    `SELECT consent_given FROM transcription_consents
+     WHERE patient_id = $1
+     ORDER BY recorded_at DESC
+     LIMIT 1`,
+    [patientId]
+  );
+
+  if (result.rows.length === 0) return false;
+  return result.rows[0].consent_given === true;
 }
 
 /** Lists all consent records for a patient, ordered by most recent first. */

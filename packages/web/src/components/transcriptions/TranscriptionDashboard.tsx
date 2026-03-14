@@ -201,7 +201,7 @@ export function TranscriptionDashboard({
         {onCreateSession && (
           <button
             onClick={onCreateSession}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium text-sm shadow-sm"
+            className="inline-flex items-center gap-2 px-4 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium text-sm shadow-sm min-h-[44px]"
           >
             <PlusIcon className="w-4 h-4" />
             New Session
@@ -330,7 +330,7 @@ export function TranscriptionDashboard({
               {!hasActiveFilters && onCreateSession && (
                 <button
                   onClick={onCreateSession}
-                  className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm font-medium"
+                  className="mt-4 inline-flex items-center gap-2 px-4 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm font-medium min-h-[44px]"
                 >
                   <PlusIcon className="w-4 h-4" />
                   New Session
@@ -417,19 +417,19 @@ export function TranscriptionDashboard({
                             {onViewSession && (
                               <button
                                 onClick={() => onViewSession(session.id)}
-                                className="p-1.5 text-gray-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-lg transition-colors"
+                                className="p-3 text-gray-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-lg transition-colors"
                                 title="View session"
                               >
-                                <EyeIcon className="w-4 h-4" />
+                                <EyeIcon className="w-5 h-5" />
                               </button>
                             )}
                             {onEditSession && session.status === 'completed' && (
                               <button
                                 onClick={() => onEditSession(session.id)}
-                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                className="p-3 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                                 title="Edit note"
                               >
-                                <PencilIcon className="w-4 h-4" />
+                                <PencilIcon className="w-5 h-5" />
                               </button>
                             )}
                             <button
@@ -440,13 +440,13 @@ export function TranscriptionDashboard({
                                 session.status === 'recording' ||
                                 session.status === 'processing'
                               }
-                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                              className="p-3 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                               title="Delete session"
                             >
                               {deletingId === session.id ? (
-                                <SpinnerIcon className="w-4 h-4 animate-spin" />
+                                <SpinnerIcon className="w-5 h-5 animate-spin" />
                               ) : (
-                                <TrashIcon className="w-4 h-4" />
+                                <TrashIcon className="w-5 h-5" />
                               )}
                             </button>
                           </div>
@@ -476,21 +476,21 @@ export function TranscriptionDashboard({
                       <span className="text-gray-500 dark:text-gray-400">
                         Duration: {formatDuration(session.durationSeconds)}
                       </span>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 flex-shrink-0">
                         {onViewSession && (
                           <button
                             onClick={() => onViewSession(session.id)}
-                            className="p-1.5 text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-lg"
+                            className="p-3 text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-lg"
                           >
-                            <EyeIcon className="w-4 h-4" />
+                            <EyeIcon className="w-5 h-5" />
                           </button>
                         )}
                         {onEditSession && session.status === 'completed' && (
                           <button
                             onClick={() => onEditSession(session.id)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
+                            className="p-3 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
                           >
-                            <PencilIcon className="w-4 h-4" />
+                            <PencilIcon className="w-5 h-5" />
                           </button>
                         )}
                         <button
@@ -500,9 +500,9 @@ export function TranscriptionDashboard({
                             session.status === 'recording' ||
                             session.status === 'processing'
                           }
-                          className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg disabled:opacity-30"
+                          className="p-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg disabled:opacity-30"
                         >
-                          <TrashIcon className="w-4 h-4" />
+                          <TrashIcon className="w-5 h-5" />
                         </button>
                       </div>
                     </div>
@@ -522,14 +522,14 @@ export function TranscriptionDashboard({
                     <button
                       onClick={() => goToPage(pagination.page - 1)}
                       disabled={pagination.page <= 1}
-                      className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
+                      className="px-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
                     >
                       Prev
                     </button>
                     <button
                       onClick={() => goToPage(pagination.page + 1)}
                       disabled={pagination.page >= totalPages}
-                      className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
+                      className="px-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
                     >
                       Next
                     </button>
@@ -540,7 +540,7 @@ export function TranscriptionDashboard({
                     <button
                       onClick={() => goToPage(pagination.page - 1)}
                       disabled={pagination.page <= 1}
-                      className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
+                      className="px-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
                     >
                       Previous
                     </button>
@@ -556,7 +556,7 @@ export function TranscriptionDashboard({
                         <button
                           key={pageNum}
                           onClick={() => goToPage(pageNum)}
-                          className={`px-3 py-1.5 text-sm rounded-lg ${
+                          className={`px-3 py-2.5 text-sm rounded-lg ${
                             pageNum === pagination.page
                               ? 'bg-teal-600 text-white'
                               : 'border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
@@ -569,7 +569,7 @@ export function TranscriptionDashboard({
                     <button
                       onClick={() => goToPage(pagination.page + 1)}
                       disabled={pagination.page >= totalPages}
-                      className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
+                      className="px-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
                     >
                       Next
                     </button>

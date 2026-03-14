@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 interface TranscriptionLayoutProps {
   readonly children: ReactNode;
@@ -12,6 +13,7 @@ const NAV_TABS = [
 
 export default function TranscriptionLayout({ children }: TranscriptionLayoutProps) {
   const location = useLocation();
+  const isMobile = useIsMobile();
 
   return (
     <div className="space-y-6">
@@ -25,22 +27,25 @@ export default function TranscriptionLayout({ children }: TranscriptionLayoutPro
             Record visits, generate clinical notes with AITranscription AI
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-navy-400 dark:text-navy-500 font-body">
-          <kbd className="px-1.5 py-0.5 bg-clinical-100 dark:bg-navy-800 border border-clinical-200 dark:border-navy-700 rounded text-[10px] font-mono">
-            Ctrl+N
-          </kbd>
-          <span>New session</span>
-          <span className="mx-1">|</span>
-          <kbd className="px-1.5 py-0.5 bg-clinical-100 dark:bg-navy-800 border border-clinical-200 dark:border-navy-700 rounded text-[10px] font-mono">
-            Ctrl+S
-          </kbd>
-          <span>Save</span>
-          <span className="mx-1 hidden sm:inline">|</span>
-          <kbd className="px-1.5 py-0.5 bg-clinical-100 dark:bg-navy-800 border border-clinical-200 dark:border-navy-700 rounded text-[10px] font-mono hidden sm:inline">
-            Space
-          </kbd>
-          <span className="hidden sm:inline">Pause/Resume</span>
-        </div>
+        {/* Keyboard shortcuts — hidden on mobile/touch devices */}
+        {!isMobile && (
+          <div className="hidden sm:flex items-center gap-2 text-xs text-navy-400 dark:text-navy-500 font-body">
+            <kbd className="px-1.5 py-0.5 bg-clinical-100 dark:bg-navy-800 border border-clinical-200 dark:border-navy-700 rounded text-[10px] font-mono">
+              Ctrl+N
+            </kbd>
+            <span>New session</span>
+            <span className="mx-1">|</span>
+            <kbd className="px-1.5 py-0.5 bg-clinical-100 dark:bg-navy-800 border border-clinical-200 dark:border-navy-700 rounded text-[10px] font-mono">
+              Ctrl+S
+            </kbd>
+            <span>Save</span>
+            <span className="mx-1">|</span>
+            <kbd className="px-1.5 py-0.5 bg-clinical-100 dark:bg-navy-800 border border-clinical-200 dark:border-navy-700 rounded text-[10px] font-mono">
+              Space
+            </kbd>
+            <span>Pause/Resume</span>
+          </div>
+        )}
       </div>
 
       {/* Tab Navigation */}
@@ -54,7 +59,7 @@ export default function TranscriptionLayout({ children }: TranscriptionLayoutPro
             <Link
               key={path}
               to={path}
-              className={`px-4 py-2.5 text-sm font-medium font-display border-b-2 transition-colors ${
+              className={`px-4 py-3 text-sm font-medium font-display border-b-2 transition-colors ${
                 isActive
                   ? 'border-teal-500 text-teal-700 dark:text-teal-400'
                   : 'border-transparent text-navy-500 dark:text-navy-400 hover:text-navy-700 dark:hover:text-navy-300 hover:border-clinical-300 dark:hover:border-navy-600'

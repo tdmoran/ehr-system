@@ -1,7 +1,22 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, CSSProperties } from 'react';
+import { List as VirtualList } from 'react-window';
 import { Link } from 'react-router-dom';
 import { transcriptionsApi, TranscriptionSession } from '../../api/transcriptions';
 import { api, Patient } from '../../api/client';
+import { useIsMobile } from '../../hooks/useIsMobile';
+import { WaveformVisualizer } from './WaveformVisualizer';
+import {
+  MicrophoneIcon,
+  RecordDotIcon,
+  PauseIcon,
+  PlayIcon,
+  StopIcon,
+  XIcon,
+  SpinnerIcon,
+  ArrowLeftIcon,
+  UserIcon,
+  ExclamationIcon,
+} from './transcription-icons';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -32,6 +47,9 @@ const WAVEFORM_BAR_COUNT = 48;
 const AUDIO_CHUNK_INTERVAL_MS = 5000;
 const WS_RECONNECT_DELAY_MS = 3000;
 const MAX_WS_RECONNECT_ATTEMPTS = 5;
+const TRANSCRIPT_LINE_HEIGHT = 32;
+const TRANSCRIPT_VISIBLE_HEIGHT = 256;
+const MAX_TRANSCRIPT_LINES = 500;
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -42,12 +60,12 @@ export function LiveRecording({
   onSessionComplete,
   onCancel,
 }: LiveRecordingProps) {
+  const isMobile = useIsMobile();
+
   // ── State ───────────────────────────────────────────────────────────────
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [waveformData, setWaveformData] = useState<readonly number[]>(
-    () => Array.from({ length: WAVEFORM_BAR_COUNT }, () => 0)
-  );
+  const [activeAnalyser, setActiveAnalyser] = useState<AnalyserNode | null>(null);
   const [transcriptLines, setTranscriptLines] = useState<readonly TranscriptLine[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -66,11 +84,10 @@ export function LiveRecording({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  const waveformAnimationRef = useRef<number | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const wsReconnectAttemptsRef = useRef(0);
-  const transcriptEndRef = useRef<HTMLDivElement | null>(null);
+  const transcriptListRef = useRef<InstanceType<typeof VirtualList> | null>(null);
   const patientDropdownRef = useRef<HTMLDivElement | null>(null);
 
   // ── Patient search with debounce ────────────────────────────────────────
@@ -116,9 +133,11 @@ export function LiveRecording({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Auto-scroll transcript
+  // Auto-scroll transcript to latest line
   useEffect(() => {
-    transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (transcriptLines.length > 0) {
+      transcriptListRef.current?.scrollToItem(transcriptLines.length - 1, 'end');
+    }
   }, [transcriptLines]);
 
   // ── Cleanup on unmount ──────────────────────────────────────────────────
@@ -135,11 +154,6 @@ export function LiveRecording({
   // ── Media / Audio helpers ───────────────────────────────────────────────
 
   const stopMediaResources = useCallback(() => {
-    if (waveformAnimationRef.current !== null) {
-      cancelAnimationFrame(waveformAnimationRef.current);
-      waveformAnimationRef.current = null;
-    }
-
     mediaRecorderRef.current?.stop();
     mediaRecorderRef.current = null;
 
@@ -151,32 +165,7 @@ export function LiveRecording({
     }
     audioContextRef.current = null;
     analyserRef.current = null;
-  }, []);
-
-  const startWaveformVisualization = useCallback(() => {
-    const analyser = analyserRef.current;
-    if (!analyser) return;
-
-    const dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-    const draw = () => {
-      analyser.getByteFrequencyData(dataArray);
-
-      const step = Math.floor(dataArray.length / WAVEFORM_BAR_COUNT);
-      const bars: number[] = [];
-      for (let i = 0; i < WAVEFORM_BAR_COUNT; i++) {
-        let sum = 0;
-        for (let j = 0; j < step; j++) {
-          sum += dataArray[i * step + j];
-        }
-        bars.push(sum / step / 255);
-      }
-
-      setWaveformData(bars);
-      waveformAnimationRef.current = requestAnimationFrame(draw);
-    };
-
-    draw();
+    setActiveAnalyser(null);
   }, []);
 
   // ── Timer helpers ───────────────────────────────────────────────────────
@@ -227,7 +216,12 @@ export function LiveRecording({
               text: message.text ?? '',
               timestamp: message.timestamp ?? Date.now(),
             };
-            setTranscriptLines((prev) => [...prev, line]);
+            setTranscriptLines((prev) => {
+              const next = [...prev, line];
+              return next.length > MAX_TRANSCRIPT_LINES
+                ? next.slice(next.length - MAX_TRANSCRIPT_LINES)
+                : next;
+            });
             break;
           }
           case 'status': {
@@ -376,14 +370,13 @@ export function LiveRecording({
     connectWebSocket(sid);
 
     // 7. Start visualization and timer
-    startWaveformVisualization();
+    setActiveAnalyser(analyser);
     startTimer();
     setRecordingState('recording');
   }, [
     selectedPatientId,
     appointmentId,
     connectWebSocket,
-    startWaveformVisualization,
     startTimer,
   ]);
 
@@ -394,27 +387,19 @@ export function LiveRecording({
     if (recordingState === 'recording') {
       recorder.pause();
       stopTimer();
-      if (waveformAnimationRef.current !== null) {
-        cancelAnimationFrame(waveformAnimationRef.current);
-        waveformAnimationRef.current = null;
-      }
       setRecordingState('paused');
     } else if (recordingState === 'paused') {
       recorder.resume();
       startTimer();
-      startWaveformVisualization();
       setRecordingState('recording');
     }
-  }, [recordingState, stopTimer, startTimer, startWaveformVisualization]);
+  }, [recordingState, stopTimer, startTimer]);
 
   const handleStopRecording = useCallback(async () => {
     setRecordingState('processing');
     stopTimer();
     stopMediaResources();
     disconnectWebSocket();
-
-    // Flatten waveform
-    setWaveformData(Array.from({ length: WAVEFORM_BAR_COUNT }, () => 0));
 
     if (!sessionId) return;
 
@@ -540,10 +525,10 @@ export function LiveRecording({
                 </div>
                 <button
                   onClick={clearPatient}
-                  className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                  className="p-3 -mr-2 text-gray-400 hover:text-red-500 transition-colors"
                   aria-label="Clear patient selection"
                 >
-                  <XIcon className="w-4 h-4" />
+                  <XIcon className="w-5 h-5" />
                 </button>
               </div>
             ) : (
@@ -623,14 +608,14 @@ export function LiveRecording({
         )}
 
         {/* Controls */}
-        <div className="flex items-center justify-center gap-3">
+        <div className="flex flex-wrap items-center justify-center gap-3">
           {recordingState === 'idle' && (
             <button
               onClick={handleStartRecording}
               disabled={!canStart}
-              className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-h-[44px]"
             >
-              <RecordDotIcon className="w-4 h-4" />
+              <RecordDotIcon className="w-5 h-5" />
               Start Recording
             </button>
           )}
@@ -639,16 +624,16 @@ export function LiveRecording({
             <>
               <button
                 onClick={handlePauseResume}
-                className="flex items-center gap-2 px-5 py-2.5 bg-yellow-500 text-white font-medium rounded-lg hover:bg-yellow-600 transition-colors"
+                className="flex items-center gap-2 px-5 py-3 bg-yellow-500 text-white font-medium rounded-lg hover:bg-yellow-600 transition-colors min-h-[44px]"
               >
                 {recordingState === 'recording' ? (
                   <>
-                    <PauseIcon className="w-4 h-4" />
+                    <PauseIcon className="w-5 h-5" />
                     Pause
                   </>
                 ) : (
                   <>
-                    <PlayIcon className="w-4 h-4" />
+                    <PlayIcon className="w-5 h-5" />
                     Resume
                   </>
                 )}
@@ -656,15 +641,15 @@ export function LiveRecording({
 
               <button
                 onClick={handleStopRecording}
-                className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 text-white font-medium rounded-lg hover:bg-teal-700 transition-colors"
+                className="flex items-center gap-2 px-5 py-3 bg-teal-600 text-white font-medium rounded-lg hover:bg-teal-700 transition-colors min-h-[44px]"
               >
-                <StopIcon className="w-4 h-4" />
+                <StopIcon className="w-5 h-5" />
                 Stop & Generate Note
               </button>
 
               <button
                 onClick={handleCancel}
-                className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="flex items-center gap-2 px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors min-h-[44px]"
               >
                 <XIcon className="w-4 h-4" />
                 Cancel
@@ -680,7 +665,7 @@ export function LiveRecording({
           )}
         </div>
 
-        {/* Live Transcript Display */}
+        {/* Live Transcript Display (virtualized) */}
         {(isRecordingActive || recordingState === 'processing') && (
           <div className="border border-gray-200 dark:border-gray-700 rounded-lg">
             <div className="px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
@@ -688,22 +673,27 @@ export function LiveRecording({
                 Live Transcript
               </h3>
             </div>
-            <div className="max-h-64 overflow-y-auto p-4 space-y-3">
+            <div className="p-4">
               {transcriptLines.length === 0 ? (
                 <p className="text-sm text-gray-400 dark:text-gray-500 italic">
                   Waiting for speech...
                 </p>
               ) : (
-                transcriptLines.map((line, index) => (
-                  <div key={index} className="text-sm">
-                    <span className="font-medium text-teal-700 dark:text-teal-400">
-                      {line.speaker}:
-                    </span>{' '}
-                    <span className="text-gray-800 dark:text-gray-200">{line.text}</span>
-                  </div>
-                ))
+                <VirtualList
+                  ref={transcriptListRef}
+                  height={Math.min(
+                    TRANSCRIPT_VISIBLE_HEIGHT,
+                    transcriptLines.length * TRANSCRIPT_LINE_HEIGHT
+                  )}
+                  itemCount={transcriptLines.length}
+                  itemSize={TRANSCRIPT_LINE_HEIGHT}
+                  width="100%"
+                  itemData={transcriptLines}
+                  overscanCount={5}
+                >
+                  {TranscriptRow}
+                </VirtualList>
               )}
-              <div ref={transcriptEndRef} />
             </div>
           </div>
         )}
@@ -722,7 +712,7 @@ export function LiveRecording({
                     setElapsedSeconds(0);
                     setTranscriptLines([]);
                   }}
-                  className="mt-2 text-sm font-medium text-red-600 dark:text-red-400 hover:underline"
+                  className="mt-2 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:underline min-h-[44px]"
                 >
                   Try Again
                 </button>
@@ -799,6 +789,18 @@ function ConnectionBadge({ status }: { readonly status: 'disconnected' | 'connec
   );
 }
 
+function TranscriptRow({ index, style, data }: { readonly index: number; readonly style: CSSProperties; readonly data: readonly TranscriptLine[] }) {
+  const line = data[index];
+  return (
+    <div style={style} className="text-sm flex items-center">
+      <span className="font-medium text-teal-700 dark:text-teal-400 flex-shrink-0">
+        {line.speaker}:
+      </span>
+      <span className="text-gray-800 dark:text-gray-200 ml-1 truncate">{line.text}</span>
+    </div>
+  );
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function formatDuration(totalSeconds: number): string {
@@ -815,107 +817,3 @@ function formatDuration(totalSeconds: number): string {
 
 // ─── Icons ──────────────────────────────────────────────────────────────────
 
-function MicrophoneIcon({ className }: { readonly className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"
-      />
-    </svg>
-  );
-}
-
-function RecordDotIcon({ className }: { readonly className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="currentColor">
-      <circle cx="8" cy="8" r="6" />
-    </svg>
-  );
-}
-
-function PauseIcon({ className }: { readonly className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25v13.5m-7.5-13.5v13.5" />
-    </svg>
-  );
-}
-
-function PlayIcon({ className }: { readonly className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z"
-      />
-    </svg>
-  );
-}
-
-function StopIcon({ className }: { readonly className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M5.25 7.5A2.25 2.25 0 017.5 5.25h9a2.25 2.25 0 012.25 2.25v9a2.25 2.25 0 01-2.25 2.25h-9a2.25 2.25 0 01-2.25-2.25v-9z"
-      />
-    </svg>
-  );
-}
-
-function XIcon({ className }: { readonly className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-    </svg>
-  );
-}
-
-function SpinnerIcon({ className }: { readonly className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-      />
-    </svg>
-  );
-}
-
-function ArrowLeftIcon({ className }: { readonly className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-    </svg>
-  );
-}
-
-function UserIcon({ className }: { readonly className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
-      />
-    </svg>
-  );
-}
-
-function ExclamationIcon({ className }: { readonly className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
-      />
-    </svg>
-  );
-}

@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import type { Patient, ConsentMethod } from '@ehr/shared';
 import { transcriptionsApi } from '../../api/transcriptions';
+import { XIcon, CheckIcon, SpinnerIcon, ShieldIcon, UndoIcon, PrintIcon } from './transcription-icons';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -27,6 +28,14 @@ interface SignatureCanvasState {
   readonly hasSignature: boolean;
 }
 
+interface Stroke {
+  readonly points: ReadonlyArray<{ readonly x: number; readonly y: number }>;
+}
+
+const SIGNATURE_HEIGHT_MOBILE = 180;
+const SIGNATURE_HEIGHT_DESKTOP = 150;
+const STROKE_LINE_WIDTH = 2.5;
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function ConsentModal({
@@ -46,8 +55,21 @@ export default function ConsentModal({
     hasSignature: false,
   });
 
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < 768
+  );
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
+  const isDrawingRef = useRef(false);
+  const strokesRef = useRef<Stroke[]>([]);
+  const currentPointsRef = useRef<{ x: number; y: number }[]>([]);
+  const [canUndo, setCanUndo] = useState(false);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const isElectronic = consentMethod === 'electronic';
   const canSubmit =
@@ -56,6 +78,39 @@ export default function ConsentModal({
     (!isElectronic || signatureState.hasSignature);
 
   // ─── Canvas Setup ───────────────────────────────────────────────────────
+
+  const initCanvas = useCallback((ctx: CanvasRenderingContext2D) => {
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#1f2937';
+    ctx.lineWidth = STROKE_LINE_WIDTH;
+  }, []);
+
+  const redrawStrokes = useCallback(() => {
+    const canvas = canvasRef.current;
+    const ctx = contextRef.current;
+    if (!canvas || !ctx) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    initCanvas(ctx);
+
+    for (const stroke of strokesRef.current) {
+      if (stroke.points.length === 0) continue;
+      if (stroke.points.length === 1) {
+        ctx.beginPath();
+        ctx.arc(stroke.points[0].x, stroke.points[0].y, STROKE_LINE_WIDTH / 2, 0, Math.PI * 2);
+        ctx.fill();
+        continue;
+      }
+      ctx.beginPath();
+      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+      for (let i = 1; i < stroke.points.length; i++) {
+        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+      }
+      ctx.stroke();
+    }
+  }, [initCanvas]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -71,12 +126,12 @@ export default function ConsentModal({
     if (!ctx) return;
 
     ctx.scale(dpr, dpr);
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#1f2937';
-    ctx.lineWidth = 2;
+    initCanvas(ctx);
     contextRef.current = ctx;
-  }, [consentMethod]);
+
+    // Redraw existing strokes after canvas re-init (e.g. orientation change)
+    redrawStrokes();
+  }, [consentMethod, isMobile, initCanvas, redrawStrokes]);
 
   // ─── Drawing Handlers ─────────────────────────────────────────────────
 
@@ -86,13 +141,14 @@ export default function ConsentModal({
       if (!canvas) return null;
 
       const rect = canvas.getBoundingClientRect();
-      const clientX = 'touches' in e ? e.touches[0]?.clientX ?? 0 : e.clientX;
-      const clientY = 'touches' in e ? e.touches[0]?.clientY ?? 0 : e.clientY;
 
-      return {
-        x: clientX - rect.left,
-        y: clientY - rect.top,
-      };
+      if ('touches' in e) {
+        const touch = e.touches[0] ?? e.changedTouches[0];
+        if (!touch) return null;
+        return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+      }
+
+      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
     },
     []
   );
@@ -103,6 +159,8 @@ export default function ConsentModal({
       const point = getCanvasPoint(e);
       if (!point || !contextRef.current) return;
 
+      currentPointsRef.current = [point];
+      isDrawingRef.current = true;
       contextRef.current.beginPath();
       contextRef.current.moveTo(point.x, point.y);
       setSignatureState({ isDrawing: true, hasSignature: true });
@@ -113,20 +171,32 @@ export default function ConsentModal({
   const draw = useCallback(
     (e: React.MouseEvent | React.TouchEvent) => {
       e.preventDefault();
-      if (!signatureState.isDrawing) return;
+      if (!isDrawingRef.current) return;
 
       const point = getCanvasPoint(e);
       if (!point || !contextRef.current) return;
 
+      currentPointsRef.current = [...currentPointsRef.current, point];
       contextRef.current.lineTo(point.x, point.y);
       contextRef.current.stroke();
     },
-    [signatureState.isDrawing, getCanvasPoint]
+    [getCanvasPoint]
   );
 
   const stopDrawing = useCallback(() => {
-    if (!contextRef.current) return;
+    if (!contextRef.current || !isDrawingRef.current) return;
+    isDrawingRef.current = false;
     contextRef.current.closePath();
+
+    if (currentPointsRef.current.length > 0) {
+      strokesRef.current = [
+        ...strokesRef.current,
+        { points: [...currentPointsRef.current] },
+      ];
+      currentPointsRef.current = [];
+      setCanUndo(true);
+    }
+
     setSignatureState((prev) => ({ ...prev, isDrawing: false }));
   }, []);
 
@@ -137,8 +207,21 @@ export default function ConsentModal({
 
     const dpr = window.devicePixelRatio || 1;
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    strokesRef.current = [];
+    currentPointsRef.current = [];
+    setCanUndo(false);
     setSignatureState({ isDrawing: false, hasSignature: false });
   }, []);
+
+  const undoStroke = useCallback(() => {
+    if (strokesRef.current.length === 0) return;
+
+    strokesRef.current = strokesRef.current.slice(0, -1);
+    const hasStrokes = strokesRef.current.length > 0;
+    setCanUndo(hasStrokes);
+    setSignatureState({ isDrawing: false, hasSignature: hasStrokes });
+    redrawStrokes();
+  }, [redrawStrokes]);
 
   const getSignatureDataUrl = useCallback((): string | undefined => {
     const canvas = canvasRef.current;
@@ -279,7 +362,7 @@ export default function ConsentModal({
               </div>
               <button
                 onClick={onClose}
-                className="text-white/80 hover:text-white transition-colors"
+                className="p-2 -mr-2 text-white/80 hover:text-white transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
               >
                 <XIcon className="w-6 h-6" />
               </button>
@@ -374,21 +457,33 @@ export default function ConsentModal({
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Digital Signature
                   </label>
-                  {signatureState.hasSignature && (
-                    <button
-                      type="button"
-                      onClick={clearSignature}
-                      className="text-xs text-red-600 dark:text-red-400 hover:underline"
-                    >
-                      Clear
-                    </button>
-                  )}
+                  <div className="flex items-center gap-3">
+                    {canUndo && (
+                      <button
+                        type="button"
+                        onClick={undoStroke}
+                        className="text-xs text-gray-600 dark:text-gray-400 hover:underline flex items-center gap-1"
+                      >
+                        <UndoIcon className="w-3.5 h-3.5" />
+                        Undo
+                      </button>
+                    )}
+                    {signatureState.hasSignature && (
+                      <button
+                        type="button"
+                        onClick={clearSignature}
+                        className="text-xs text-red-600 dark:text-red-400 hover:underline py-2 min-h-[44px]"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 relative">
                   <canvas
                     ref={canvasRef}
                     className="w-full cursor-crosshair touch-none"
-                    style={{ height: '120px' }}
+                    style={{ height: `${isMobile ? SIGNATURE_HEIGHT_MOBILE : SIGNATURE_HEIGHT_DESKTOP}px` }}
                     onMouseDown={startDrawing}
                     onMouseMove={draw}
                     onMouseUp={stopDrawing}
@@ -396,11 +491,12 @@ export default function ConsentModal({
                     onTouchStart={startDrawing}
                     onTouchMove={draw}
                     onTouchEnd={stopDrawing}
+                    onTouchCancel={stopDrawing}
                   />
                   {!signatureState.hasSignature && (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                       <span className="text-sm text-gray-400 dark:text-gray-500">
-                        Sign here (mouse or touch)
+                        Sign here
                       </span>
                     </div>
                   )}
@@ -442,7 +538,7 @@ export default function ConsentModal({
               <button
                 type="button"
                 onClick={handlePrintConsent}
-                className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 flex items-center gap-1 transition-colors"
+                className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 flex items-center gap-1 transition-colors py-2 min-h-[44px]"
               >
                 <PrintIcon className="w-4 h-4" />
                 View / Print
@@ -452,7 +548,7 @@ export default function ConsentModal({
                   type="button"
                   onClick={handleDeclineConsent}
                   disabled={saving}
-                  className="px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
+                  className="px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-sm font-medium disabled:opacity-50 min-h-[44px]"
                 >
                   Consent Declined
                 </button>
@@ -460,7 +556,7 @@ export default function ConsentModal({
                   type="button"
                   onClick={handleRecordConsent}
                   disabled={!canSubmit || saving}
-                  className="px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+                  className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm min-h-[44px]"
                 >
                   {saving ? (
                     <>
@@ -483,49 +579,3 @@ export default function ConsentModal({
   );
 }
 
-// ─── Icons ──────────────────────────────────────────────────────────────────
-
-function XIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-    </svg>
-  );
-}
-
-function CheckIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-    </svg>
-  );
-}
-
-function SpinnerIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-      />
-    </svg>
-  );
-}
-
-function ShieldIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-    </svg>
-  );
-}
-
-function PrintIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-    </svg>
-  );
-}

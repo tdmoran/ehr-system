@@ -1,11 +1,22 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   transcriptionsApi,
-  TranscriptionSession,
-  TranscriptionNote,
-  TranscriptionListParams,
-  TranscriptionStatus,
+  type TranscriptionListParams,
+  type TranscriptionStatus,
 } from '../api/transcriptions';
+
+// ─── Query Keys ──────────────────────────────────────────────────────────────
+
+export const transcriptionKeys = {
+  all: ['transcriptions'] as const,
+  sessions: (params: TranscriptionListParams) =>
+    [...transcriptionKeys.all, 'sessions', params] as const,
+  session: (id: string) =>
+    [...transcriptionKeys.all, 'session', id] as const,
+};
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface TranscriptionFilters {
   status: TranscriptionStatus | '';
@@ -43,78 +54,75 @@ const DEFAULT_PAGINATION: TranscriptionPagination = {
   total: 0,
 };
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function buildParams(
+  filters: TranscriptionFilters,
+  sort: TranscriptionSortConfig,
+  page: number,
+  limit: number,
+): TranscriptionListParams {
+  const params: TranscriptionListParams = {
+    page,
+    limit,
+    sortBy: sort.sortBy,
+    sortOrder: sort.sortOrder,
+  };
+  if (filters.status) params.status = filters.status;
+  if (filters.patientSearch) params.patientSearch = filters.patientSearch;
+  if (filters.startDate) params.startDate = filters.startDate;
+  if (filters.endDate) params.endDate = filters.endDate;
+  return params;
+}
+
+// ─── useTranscriptions ──────────────────────────────────────────────────────
+
 export function useTranscriptions() {
-  const [sessions, setSessions] = useState<TranscriptionSession[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<TranscriptionFilters>(DEFAULT_FILTERS);
   const [sort, setSort] = useState<TranscriptionSortConfig>(DEFAULT_SORT);
   const [pagination, setPagination] = useState<TranscriptionPagination>(DEFAULT_PAGINATION);
 
+  // Debounced params for the query key so rapid filter changes don't fire multiple requests
+  const [debouncedParams, setDebouncedParams] = useState<TranscriptionListParams>(() =>
+    buildParams(DEFAULT_FILTERS, DEFAULT_SORT, 1, 10)
+  );
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const fetchSessions = useCallback(async (
-    currentFilters: TranscriptionFilters,
-    currentSort: TranscriptionSortConfig,
-    currentPage: number,
-    currentLimit: number
-  ) => {
-    setLoading(true);
-    setError(null);
+  const currentParams = useMemo(
+    () => buildParams(filters, sort, pagination.page, pagination.limit),
+    [filters, sort, pagination.page, pagination.limit],
+  );
 
-    const params: TranscriptionListParams = {
-      page: currentPage,
-      limit: currentLimit,
-      sortBy: currentSort.sortBy,
-      sortOrder: currentSort.sortOrder,
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedParams(currentParams);
+    }, 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
     };
+  }, [currentParams]);
 
-    if (currentFilters.status) {
-      params.status = currentFilters.status;
-    }
-    if (currentFilters.patientSearch) {
-      params.patientSearch = currentFilters.patientSearch;
-    }
-    if (currentFilters.startDate) {
-      params.startDate = currentFilters.startDate;
-    }
-    if (currentFilters.endDate) {
-      params.endDate = currentFilters.endDate;
-    }
+  const query = useQuery({
+    queryKey: transcriptionKeys.sessions(debouncedParams),
+    queryFn: async () => {
+      const { data, error } = await transcriptionsApi.getSessions(debouncedParams);
+      if (error) throw new Error(error);
+      return data!;
+    },
+  });
 
-    const { data, error: apiError } = await transcriptionsApi.getSessions(params);
-
-    if (apiError) {
-      setError(apiError);
-    } else if (data) {
-      setSessions(data.sessions);
+  // Sync server-side pagination total back to local state
+  useEffect(() => {
+    if (query.data) {
       setPagination((prev) => ({
         ...prev,
-        total: data.total,
-        page: data.page,
-        limit: data.limit,
+        total: query.data.total,
+        page: query.data.page,
+        limit: query.data.limit,
       }));
     }
-
-    setLoading(false);
-  }, []);
-
-  // Debounced fetch on filter/sort/page changes
-  useEffect(() => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-
-    debounceRef.current = setTimeout(() => {
-      fetchSessions(filters, sort, pagination.page, pagination.limit);
-    }, 300);
-
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-    };
-  }, [filters, sort, pagination.page, pagination.limit, fetchSessions]);
+  }, [query.data]);
 
   const updateFilters = useCallback((updates: Partial<TranscriptionFilters>) => {
     setFilters((prev) => ({ ...prev, ...updates }));
@@ -139,13 +147,13 @@ export function useTranscriptions() {
   }, []);
 
   const refetch = useCallback(() => {
-    fetchSessions(filters, sort, pagination.page, pagination.limit);
-  }, [filters, sort, pagination.page, pagination.limit, fetchSessions]);
+    query.refetch();
+  }, [query]);
 
   return {
-    sessions,
-    loading,
-    error,
+    sessions: query.data?.sessions ?? [],
+    loading: query.isLoading,
+    error: query.error?.message ?? null,
     filters,
     sort,
     pagination,
@@ -157,56 +165,67 @@ export function useTranscriptions() {
   };
 }
 
+// ─── useTranscriptionSession ────────────────────────────────────────────────
+
 export function useTranscriptionSession(id: string | null) {
-  const [session, setSession] = useState<TranscriptionSession | null>(null);
-  const [note, setNote] = useState<TranscriptionNote | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const query = useQuery({
+    queryKey: transcriptionKeys.session(id ?? ''),
+    queryFn: async () => {
+      const { data, error } = await transcriptionsApi.getSession(id!);
+      if (error) throw new Error(error);
+      return data!;
+    },
+    enabled: id !== null,
+  });
 
-  const fetchSession = useCallback(async () => {
-    if (!id) return;
+  const refetch = useCallback(() => {
+    query.refetch();
+  }, [query]);
 
-    setLoading(true);
-    setError(null);
-
-    const { data, error: apiError } = await transcriptionsApi.getSession(id);
-
-    if (apiError) {
-      setError(apiError);
-    } else if (data) {
-      setSession(data.session);
-      setNote(data.note ?? null);
-    }
-
-    setLoading(false);
-  }, [id]);
-
-  useEffect(() => {
-    fetchSession();
-  }, [fetchSession]);
-
-  return { session, note, loading, error, refetch: fetchSession };
+  return {
+    session: query.data?.session ?? null,
+    note: query.data?.note ?? null,
+    loading: query.isLoading,
+    error: query.error?.message ?? null,
+    refetch,
+  };
 }
 
+// ─── useDeleteTranscription ─────────────────────────────────────────────────
+
 export function useDeleteTranscription() {
-  const [deleting, setDeleting] = useState(false);
+  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
-  const deleteSession = useCallback(async (id: string): Promise<boolean> => {
-    setDeleting(true);
-    setError(null);
+  const mutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error: apiError } = await transcriptionsApi.deleteSession(id);
+      if (apiError) throw new Error(apiError);
+    },
+    onSuccess: () => {
+      setError(null);
+      queryClient.invalidateQueries({ queryKey: transcriptionKeys.all });
+    },
+  });
 
-    const { error: apiError } = await transcriptionsApi.deleteSession(id);
+  const deleteSession = useCallback(
+    async (id: string): Promise<boolean> => {
+      setError(null);
+      try {
+        await mutation.mutateAsync(id);
+        return true;
+      } catch (e) {
+        const message = e instanceof Error ? e.message : 'Delete failed';
+        setError(message);
+        return false;
+      }
+    },
+    [mutation],
+  );
 
-    if (apiError) {
-      setError(apiError);
-      setDeleting(false);
-      return false;
-    }
-
-    setDeleting(false);
-    return true;
-  }, []);
-
-  return { deleteSession, deleting, error };
+  return {
+    deleteSession,
+    deleting: mutation.isPending,
+    error,
+  };
 }

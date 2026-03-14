@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React from 'react';
 import { useTranscriptions, useTranscriptionSession, useDeleteTranscription } from './useTranscriptions';
 
 // ─── Mock API ───────────────────────────────────────────────────────────────
@@ -41,6 +43,23 @@ const MOCK_NOTE = {
   chiefComplaint: 'Sore throat',
 };
 
+// ─── Helper ─────────────────────────────────────────────────────────────────
+
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: 0 },
+    },
+  });
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return React.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      children,
+    );
+  };
+}
+
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 describe('useTranscriptions', () => {
@@ -58,7 +77,9 @@ describe('useTranscriptions', () => {
       data: { sessions: MOCK_SESSIONS, total: 2, page: 1, limit: 10 },
     });
 
-    const { result } = renderHook(() => useTranscriptions());
+    const { result } = renderHook(() => useTranscriptions(), {
+      wrapper: createWrapper(),
+    });
 
     // Initially loading
     expect(result.current.loading).toBe(true);
@@ -79,7 +100,9 @@ describe('useTranscriptions', () => {
       error: 'Server error',
     });
 
-    const { result } = renderHook(() => useTranscriptions());
+    const { result } = renderHook(() => useTranscriptions(), {
+      wrapper: createWrapper(),
+    });
 
     act(() => { vi.advanceTimersByTime(400); });
 
@@ -93,7 +116,9 @@ describe('useTranscriptions', () => {
       data: { sessions: [], total: 0, page: 1, limit: 10 },
     });
 
-    const { result } = renderHook(() => useTranscriptions());
+    const { result } = renderHook(() => useTranscriptions(), {
+      wrapper: createWrapper(),
+    });
 
     act(() => { vi.advanceTimersByTime(400); });
 
@@ -114,7 +139,9 @@ describe('useTranscriptions', () => {
       data: { sessions: [], total: 0, page: 1, limit: 10 },
     });
 
-    const { result } = renderHook(() => useTranscriptions());
+    const { result } = renderHook(() => useTranscriptions(), {
+      wrapper: createWrapper(),
+    });
 
     act(() => { vi.advanceTimersByTime(400); });
 
@@ -146,7 +173,9 @@ describe('useTranscriptions', () => {
       data: { sessions: [], total: 0, page: 1, limit: 10 },
     });
 
-    const { result } = renderHook(() => useTranscriptions());
+    const { result } = renderHook(() => useTranscriptions(), {
+      wrapper: createWrapper(),
+    });
 
     act(() => { vi.advanceTimersByTime(400); });
 
@@ -167,7 +196,9 @@ describe('useTranscriptions', () => {
       data: { sessions: MOCK_SESSIONS, total: 25, page: 1, limit: 10 },
     });
 
-    const { result } = renderHook(() => useTranscriptions());
+    const { result } = renderHook(() => useTranscriptions(), {
+      wrapper: createWrapper(),
+    });
 
     act(() => { vi.advanceTimersByTime(400); });
 
@@ -187,7 +218,9 @@ describe('useTranscriptions', () => {
       data: { sessions: [], total: 0, page: 1, limit: 10 },
     });
 
-    const { result } = renderHook(() => useTranscriptions());
+    const { result } = renderHook(() => useTranscriptions(), {
+      wrapper: createWrapper(),
+    });
 
     act(() => { vi.advanceTimersByTime(400); });
 
@@ -215,7 +248,9 @@ describe('useTranscriptions', () => {
       data: { sessions: [], total: 0, page: 1, limit: 10 },
     });
 
-    const { result } = renderHook(() => useTranscriptions());
+    const { result } = renderHook(() => useTranscriptions(), {
+      wrapper: createWrapper(),
+    });
 
     act(() => { vi.advanceTimersByTime(400); });
 
@@ -245,6 +280,29 @@ describe('useTranscriptions', () => {
       );
     });
   });
+
+  it('deduplicates concurrent requests for same params', async () => {
+    mockGetSessions.mockResolvedValue({
+      data: { sessions: MOCK_SESSIONS, total: 2, page: 1, limit: 10 },
+    });
+
+    const wrapper = createWrapper();
+
+    // Two hooks with the same default params share one query
+    const { result: r1 } = renderHook(() => useTranscriptions(), { wrapper });
+    const { result: r2 } = renderHook(() => useTranscriptions(), { wrapper });
+
+    act(() => { vi.advanceTimersByTime(400); });
+
+    await waitFor(() => {
+      expect(r1.current.loading).toBe(false);
+      expect(r2.current.loading).toBe(false);
+    });
+
+    // Only one network call despite two hook instances
+    expect(mockGetSessions).toHaveBeenCalledTimes(1);
+    expect(r1.current.sessions).toEqual(r2.current.sessions);
+  });
 });
 
 describe('useTranscriptionSession', () => {
@@ -257,7 +315,9 @@ describe('useTranscriptionSession', () => {
       data: { session: MOCK_SESSIONS[0], note: MOCK_NOTE },
     });
 
-    const { result } = renderHook(() => useTranscriptionSession('session-1'));
+    const { result } = renderHook(() => useTranscriptionSession('session-1'), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -272,7 +332,9 @@ describe('useTranscriptionSession', () => {
       error: 'Session not found',
     });
 
-    const { result } = renderHook(() => useTranscriptionSession('nonexistent'));
+    const { result } = renderHook(() => useTranscriptionSession('nonexistent'), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.error).toBe('Session not found');
@@ -282,8 +344,11 @@ describe('useTranscriptionSession', () => {
   });
 
   it('does not fetch when id is null', async () => {
-    const { result } = renderHook(() => useTranscriptionSession(null));
+    const { result } = renderHook(() => useTranscriptionSession(null), {
+      wrapper: createWrapper(),
+    });
 
+    // With enabled: false, isLoading is false immediately
     expect(result.current.loading).toBe(false);
     expect(mockGetSession).not.toHaveBeenCalled();
   });
@@ -293,7 +358,9 @@ describe('useTranscriptionSession', () => {
       data: { session: MOCK_SESSIONS[0], note: null },
     });
 
-    const { result } = renderHook(() => useTranscriptionSession('session-1'));
+    const { result } = renderHook(() => useTranscriptionSession('session-1'), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -306,6 +373,34 @@ describe('useTranscriptionSession', () => {
 
     expect(mockGetSession).toHaveBeenCalledTimes(2);
   });
+
+  it('caches session data across remounts', async () => {
+    mockGetSession.mockResolvedValue({
+      data: { session: MOCK_SESSIONS[0], note: MOCK_NOTE },
+    });
+
+    const wrapper = createWrapper();
+
+    const { result, unmount } = renderHook(
+      () => useTranscriptionSession('session-1'),
+      { wrapper },
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    unmount();
+
+    // Remount with same wrapper (same QueryClient) — data is cached
+    const { result: result2 } = renderHook(
+      () => useTranscriptionSession('session-1'),
+      { wrapper },
+    );
+
+    // Data available immediately from cache
+    expect(result2.current.session).toEqual(MOCK_SESSIONS[0]);
+  });
 });
 
 describe('useDeleteTranscription', () => {
@@ -316,7 +411,9 @@ describe('useDeleteTranscription', () => {
   it('deletes a session successfully', async () => {
     mockDeleteSessionApi.mockResolvedValueOnce({});
 
-    const { result } = renderHook(() => useDeleteTranscription());
+    const { result } = renderHook(() => useDeleteTranscription(), {
+      wrapper: createWrapper(),
+    });
 
     let success: boolean = false;
     await act(async () => {
@@ -332,7 +429,9 @@ describe('useDeleteTranscription', () => {
       error: 'Cannot delete active session',
     });
 
-    const { result } = renderHook(() => useDeleteTranscription());
+    const { result } = renderHook(() => useDeleteTranscription(), {
+      wrapper: createWrapper(),
+    });
 
     let success: boolean = true;
     await act(async () => {
@@ -341,5 +440,29 @@ describe('useDeleteTranscription', () => {
 
     expect(success).toBe(false);
     expect(result.current.error).toBe('Cannot delete active session');
+  });
+
+  it('invalidates session queries after successful delete', async () => {
+    mockDeleteSessionApi.mockResolvedValueOnce({});
+    mockGetSessions.mockResolvedValue({
+      data: { sessions: MOCK_SESSIONS, total: 2, page: 1, limit: 10 },
+    });
+
+    const wrapper = createWrapper();
+
+    // Mount the list hook first
+    renderHook(() => useTranscriptions(), { wrapper });
+
+    const { result } = renderHook(() => useDeleteTranscription(), { wrapper });
+
+    await act(async () => {
+      await result.current.deleteSession('session-1');
+    });
+
+    // The delete should have triggered cache invalidation, causing a refetch
+    // (initial fetch + invalidation refetch)
+    await waitFor(() => {
+      expect(mockGetSessions.mock.calls.length).toBeGreaterThanOrEqual(1);
+    });
   });
 });

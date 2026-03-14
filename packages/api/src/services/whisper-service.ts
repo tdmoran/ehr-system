@@ -152,7 +152,7 @@ export async function transcribeAudio(
 
   return withRetry(async () => {
     const formData = new FormData();
-    const blob = new Blob([audioBuffer], { type: 'audio/webm' });
+    const blob = new Blob([audioBuffer as unknown as ArrayBuffer], { type: 'audio/webm' });
     formData.append('file', blob, filename);
     formData.append('model', 'whisper-1');
     formData.append('response_format', 'verbose_json');

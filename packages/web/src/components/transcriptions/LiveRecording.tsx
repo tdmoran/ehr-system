@@ -341,9 +341,22 @@ export function LiveRecording({
 
     recorder.ondataavailable = async (event) => {
       if (event.data.size > 0 && sid) {
-        const { error: uploadError } = await transcriptionsApi.uploadAudioChunk(sid, event.data);
-        if (uploadError) {
-          console.error('Audio chunk upload failed:', uploadError);
+        // Prefer WebSocket for real-time streaming; fall back to HTTP upload
+        const currentWs = wsRef.current;
+        if (currentWs && currentWs.readyState === WebSocket.OPEN) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64 = (reader.result as string).split(',')[1];
+            if (base64 && currentWs.readyState === WebSocket.OPEN) {
+              currentWs.send(JSON.stringify({ type: 'audio_chunk', data: base64 }));
+            }
+          };
+          reader.readAsDataURL(event.data);
+        } else {
+          const { error: uploadError } = await transcriptionsApi.uploadAudioChunk(sid, event.data);
+          if (uploadError) {
+            console.error('Audio chunk upload failed:', uploadError);
+          }
         }
       }
     };
@@ -747,7 +760,7 @@ function ConnectionBadge({ status }: { readonly status: 'disconnected' | 'connec
           isConnected ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'
         }`}
       />
-      {isConnected ? 'Connected to AITranscription' : 'Connecting...'}
+      {isConnected ? 'Live transcription active' : 'Connecting...'}
     </span>
   );
 }

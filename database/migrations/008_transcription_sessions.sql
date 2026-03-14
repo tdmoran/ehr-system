@@ -12,7 +12,7 @@ CREATE TABLE transcription_sessions (
     -- Heidi integration
     external_session_id VARCHAR(255),
     external_provider VARCHAR(50) NOT NULL
-        CHECK (external_provider IN ('heidi', 'built_in')),
+        CHECK (external_provider IN ('aiTranscription', 'built_in')),
 
     -- Session lifecycle
     status VARCHAR(20) NOT NULL DEFAULT 'pending'

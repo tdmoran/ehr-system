@@ -732,7 +732,7 @@ function ConnectionBadge({ status }: { readonly status: 'disconnected' | 'connec
           isConnected ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'
         }`}
       />
-      {isConnected ? 'Connected to Heidi' : 'Connecting...'}
+      {isConnected ? 'Connected to AITranscription' : 'Connecting...'}
     </span>
   );
 }

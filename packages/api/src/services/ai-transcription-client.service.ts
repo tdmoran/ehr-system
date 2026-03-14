@@ -1,32 +1,32 @@
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 
-export class HeidiApiError extends Error {
+export class AITranscriptionApiError extends Error {
   public readonly statusCode: number;
   public readonly responseBody: string;
 
   constructor(statusCode: number, responseBody: string) {
-    super(`Heidi API error (${statusCode}): ${responseBody}`);
+    super(`AITranscription API error (${statusCode}): ${responseBody}`);
     this.statusCode = statusCode;
     this.responseBody = responseBody;
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 
-interface HeidiSessionResponse {
+interface AITranscriptionSessionResponse {
   sessionId: string;
   sessionUrl: string;
   status: string;
 }
 
-interface HeidiTranscriptResponse {
+interface AITranscriptionTranscriptResponse {
   transcript: string;
   speakers: Array<{ label: string; text: string }>;
   wordCount: number;
   speakerCount: number;
 }
 
-interface HeidiNoteResponse {
+interface AITranscriptionNoteResponse {
   chiefComplaint: string | null;
   subjective: string | null;
   objective: string | null;
@@ -38,7 +38,7 @@ interface HeidiNoteResponse {
   suggestedCptCodes: Array<{ code: string; description: string; confidence: number }>;
 }
 
-interface HeidiStatusResponse {
+interface AITranscriptionStatusResponse {
   sessionId: string;
   status: string;
   error?: string;
@@ -51,25 +51,25 @@ interface PatientContext {
   templateType?: string;
 }
 
-async function heidiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const { heidi } = config;
+async function aiTranscriptionRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const { aiTranscription } = config;
 
-  if (!heidi.enabled) {
-    throw new HeidiApiError(503, 'Heidi integration is disabled');
+  if (!aiTranscription.enabled) {
+    throw new AITranscriptionApiError(503, 'AITranscription integration is disabled');
   }
 
-  if (!heidi.apiBaseUrl || !heidi.apiKey) {
-    throw new HeidiApiError(503, 'Heidi API is not configured');
+  if (!aiTranscription.apiBaseUrl || !aiTranscription.apiKey) {
+    throw new AITranscriptionApiError(503, 'AITranscription API is not configured');
   }
 
-  const url = `${heidi.apiBaseUrl}${path}`;
+  const url = `${aiTranscription.apiBaseUrl}${path}`;
 
-  logger.info('Heidi API request', { method: options.method || 'GET', path });
+  logger.info('AITranscription API request', { method: options.method || 'GET', path });
 
   const response = await fetch(url, {
     ...options,
     headers: {
-      'Authorization': `Bearer ${heidi.apiKey}`,
+      'Authorization': `Bearer ${aiTranscription.apiKey}`,
       'Content-Type': 'application/json',
       ...options.headers,
     },
@@ -77,17 +77,17 @@ async function heidiRequest<T>(path: string, options: RequestInit = {}): Promise
 
   if (!response.ok) {
     const body = await response.text();
-    logger.error('Heidi API error', { statusCode: response.status, path, body });
-    throw new HeidiApiError(response.status, body);
+    logger.error('AITranscription API error', { statusCode: response.status, path, body });
+    throw new AITranscriptionApiError(response.status, body);
   }
 
   return response.json() as Promise<T>;
 }
 
-export async function createHeidiSession(
+export async function createAITranscriptionSession(
   patientContext: PatientContext
-): Promise<HeidiSessionResponse> {
-  return heidiRequest<HeidiSessionResponse>('/sessions', {
+): Promise<AITranscriptionSessionResponse> {
+  return aiTranscriptionRequest<AITranscriptionSessionResponse>('/sessions', {
     method: 'POST',
     body: JSON.stringify({
       patientName: patientContext.patientName,
@@ -100,8 +100,8 @@ export async function createHeidiSession(
 
 export async function getTranscript(
   externalSessionId: string
-): Promise<HeidiTranscriptResponse> {
-  return heidiRequest<HeidiTranscriptResponse>(
+): Promise<AITranscriptionTranscriptResponse> {
+  return aiTranscriptionRequest<AITranscriptionTranscriptResponse>(
     `/sessions/${encodeURIComponent(externalSessionId)}/transcript`
   );
 }
@@ -109,8 +109,8 @@ export async function getTranscript(
 export async function generateStructuredNote(
   externalSessionId: string,
   templateType: string = 'soap'
-): Promise<HeidiNoteResponse> {
-  return heidiRequest<HeidiNoteResponse>(
+): Promise<AITranscriptionNoteResponse> {
+  return aiTranscriptionRequest<AITranscriptionNoteResponse>(
     `/sessions/${encodeURIComponent(externalSessionId)}/note`,
     {
       method: 'POST',
@@ -121,20 +121,20 @@ export async function generateStructuredNote(
 
 export async function getSuggestedCodes(
   externalSessionId: string
-): Promise<{ icdCodes: HeidiNoteResponse['suggestedIcdCodes']; cptCodes: HeidiNoteResponse['suggestedCptCodes'] }> {
-  return heidiRequest(
+): Promise<{ icdCodes: AITranscriptionNoteResponse['suggestedIcdCodes']; cptCodes: AITranscriptionNoteResponse['suggestedCptCodes'] }> {
+  return aiTranscriptionRequest(
     `/sessions/${encodeURIComponent(externalSessionId)}/codes`
   );
 }
 
 export async function getSessionStatus(
   externalSessionId: string
-): Promise<HeidiStatusResponse> {
-  return heidiRequest<HeidiStatusResponse>(
+): Promise<AITranscriptionStatusResponse> {
+  return aiTranscriptionRequest<AITranscriptionStatusResponse>(
     `/sessions/${encodeURIComponent(externalSessionId)}/status`
   );
 }
 
-export function isHeidiEnabled(): boolean {
-  return config.heidi.enabled;
+export function isAITranscriptionEnabled(): boolean {
+  return config.aiTranscription.enabled;
 }

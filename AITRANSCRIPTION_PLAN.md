@@ -1,4 +1,4 @@
-# Heidi Health AI Transcription — Integration Plan
+# AITranscription Health AI Transcription — Integration Plan
 
 ## Table of Contents
 
@@ -16,9 +16,9 @@
 
 ## 1. Research Summary
 
-### What is Heidi Health?
+### What is AITranscription Health?
 
-Heidi Health is an AI-powered ambient medical scribe founded in 2019 in Melbourne, Australia. It listens to clinician-patient conversations and automatically generates structured clinical notes (SOAP, referral letters, progress notes, etc.).
+AITranscription Health is an AI-powered ambient medical scribe founded in 2019 in Melbourne, Australia. It listens to clinician-patient conversations and automatically generates structured clinical notes (SOAP, referral letters, progress notes, etc.).
 
 **Key stats (as of 2026):**
 - 370,000+ clinicians across 116 countries
@@ -34,12 +34,12 @@ Heidi Health is an AI-powered ambient medical scribe founded in 2019 in Melbourn
 4. **Code** — AI suggests ICD-10-CM and SNOMED-CT codes
 5. **Review** — Clinician reviews, edits, and finalizes before pushing to EMR
 
-### Integration Options Heidi Provides
+### Integration Options AITranscription Provides
 
 | Method | Description | Best For |
 |--------|-------------|----------|
-| **Heidi Open API** | REST API for transcribing encounters and generating notes | Backend integration, custom workflows |
-| **Heidi Widget/SDK** | Embeddable React/Angular/Vue component | Embedded in-app experience |
+| **AITranscription Open API** | REST API for transcribing encounters and generating notes | Backend integration, custom workflows |
+| **AITranscription Widget/SDK** | Embeddable React/Angular/Vue component | Embedded in-app experience |
 | **Chrome Extension** | Works with any web-based EHR | Zero-code integration |
 | **FHIR (SMART on FHIR)** | Standards-based health data exchange | Epic-style integrations |
 
@@ -81,9 +81,9 @@ Heidi Health is an AI-powered ambient medical scribe founded in 2019 in Melbourn
 
 ## 2. Integration Architecture
 
-### Recommended Approach: Heidi Widget/SDK + Open API Hybrid
+### Recommended Approach: AITranscription Widget/SDK + Open API Hybrid
 
-The Heidi Widget handles the recording/transcription UI, while the Open API pushes structured notes into our EHR. This minimizes custom audio processing code while keeping full control of data flow.
+The AITranscription Widget handles the recording/transcription UI, while the Open API pushes structured notes into our EHR. This minimizes custom audio processing code while keeping full control of data flow.
 
 ### Architecture Diagram
 
@@ -94,7 +94,7 @@ The Heidi Widget handles the recording/transcription UI, while the Open API push
 │  ┌──────────────┐    ┌──────────────────┐    ┌──────────────────┐  │
 │  │ PatientChart  │    │ TranscriptionPanel│    │ EncounterEditor  │  │
 │  │              │───▶│                  │───▶│                  │  │
-│  │ Start Visit   │    │ Heidi Widget SDK │    │ Review & Sign    │  │
+│  │ Start Visit   │    │ AITranscription Widget SDK │    │ Review & Sign    │  │
 │  └──────────────┘    │ (embedded)       │    │ SOAP Note        │  │
 │                      │                  │    └──────────────────┘  │
 │                      │ • Record button  │             │            │
@@ -112,7 +112,7 @@ The Heidi Widget handles the recording/transcription UI, while the Open API push
                      │                      │
                      │  ┌────────────────┐  │
                      │  │ transcription   │  │     ┌──────────────────┐
-                     │  │ routes          │──┼────▶│  Heidi Open API  │
+                     │  │ routes          │──┼────▶│  AITranscription Open API  │
                      │  └────────────────┘  │     │  (External)       │
                      │  ┌────────────────┐  │     │                  │
                      │  │ transcription   │  │     │ • Auth (token)   │
@@ -145,11 +145,11 @@ The Heidi Widget handles the recording/transcription UI, while the Open API push
 
 ```
 1. Clinician starts appointment → clicks "Start Transcription"
-2. Heidi Widget captures audio via browser mic
-3. Audio streams to Heidi servers (encrypted, region-specific)
+2. AITranscription Widget captures audio via browser mic
+3. Audio streams to AITranscription servers (encrypted, region-specific)
 4. Real-time transcript shown in TranscriptionPanel
 5. Consultation ends → clinician clicks "End & Generate Note"
-6. Our API calls Heidi Open API to retrieve structured note
+6. Our API calls AITranscription Open API to retrieve structured note
 7. Structured SOAP fields populated in EncounterEditor
 8. Clinician reviews, edits, signs → saved to encounters table
 9. All actions audit-logged for HIPAA compliance
@@ -170,10 +170,10 @@ CREATE TABLE transcription_sessions (
     patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
     provider_id UUID NOT NULL REFERENCES users(id),
 
-    -- Heidi integration
-    external_session_id VARCHAR(255),           -- Heidi's session identifier
-    external_provider VARCHAR(50) NOT NULL       -- 'heidi' | 'built_in'
-        CHECK (external_provider IN ('heidi', 'built_in')),
+    -- AITranscription integration
+    external_session_id VARCHAR(255),           -- AITranscription's session identifier
+    external_provider VARCHAR(50) NOT NULL       -- 'aiTranscription' | 'built_in'
+        CHECK (external_provider IN ('aiTranscription', 'built_in')),
 
     -- Session lifecycle
     status VARCHAR(20) NOT NULL DEFAULT 'pending'
@@ -244,7 +244,7 @@ CREATE TABLE transcription_templates (
         )),
     sections JSONB NOT NULL,                      -- [{name, prompt, required}]
     is_default BOOLEAN DEFAULT FALSE,
-    external_template_id VARCHAR(255),            -- Heidi template ID if synced
+    external_template_id VARCHAR(255),            -- AITranscription template ID if synced
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -316,7 +316,7 @@ GET    /api/transcriptions/sessions/patient/:patientId
        Returns: { sessions[] }
 
 POST   /api/transcriptions/sessions/:id/generate
-       Trigger note generation from Heidi API
+       Trigger note generation from AITranscription API
        Body: { templateType? }
        Returns: { note }
 
@@ -358,31 +358,31 @@ GET    /api/transcriptions/sessions/:id/codes
 ### New Service: `transcription.service.ts`
 
 Key methods:
-- `createSession(patientId, providerId, options)` — Create session, init Heidi API session
+- `createSession(patientId, providerId, options)` — Create session, init AITranscription API session
 - `updateStatus(sessionId, status)` — Lifecycle management
-- `generateNote(sessionId, templateType)` — Call Heidi API, store structured output
+- `generateNote(sessionId, templateType)` — Call AITranscription API, store structured output
 - `acceptNote(sessionId, modifications, encounterId?)` — Map AI note to encounter
 - `rejectNote(sessionId)` — Mark as rejected, log for analytics
 - `getSessionWithNote(sessionId)` — Fetch session + note joined
 
-### New Service: `heidi-client.service.ts`
+### New Service: `aiTranscription-client.service.ts`
 
-Heidi API wrapper:
-- `createHeidiSession(patientContext)` — POST to Heidi API
+AITranscription API wrapper:
+- `createAITranscriptionSession(patientContext)` — POST to AITranscription API
 - `getTranscript(externalSessionId)` — GET raw transcript
 - `generateStructuredNote(externalSessionId, template)` — POST note generation
 - `getSuggestedCodes(externalSessionId)` — GET ICD-10/CPT suggestions
 - `getSessionStatus(externalSessionId)` — Poll processing status
 
-### Heidi API Authentication
+### AITranscription API Authentication
 
 ```typescript
-// packages/api/src/services/heidi-client.service.ts
+// packages/api/src/services/aiTranscription-client.service.ts
 
 const HEIDI_API_BASE = process.env.HEIDI_API_BASE_URL; // Region-specific
 const HEIDI_API_KEY = process.env.HEIDI_API_KEY;
 
-const heidiRequest = async (path: string, options: RequestInit = {}) => {
+const aiTranscriptionRequest = async (path: string, options: RequestInit = {}) => {
   const response = await fetch(`${HEIDI_API_BASE}${path}`, {
     ...options,
     headers: {
@@ -393,7 +393,7 @@ const heidiRequest = async (path: string, options: RequestInit = {}) => {
   });
 
   if (!response.ok) {
-    throw new HeidiApiError(response.status, await response.text());
+    throw new AITranscriptionApiError(response.status, await response.text());
   }
 
   return response.json();
@@ -403,9 +403,9 @@ const heidiRequest = async (path: string, options: RequestInit = {}) => {
 ### New Environment Variables
 
 ```
-HEIDI_API_BASE_URL=https://api.us.heidihealth.com   # Region-specific base URL
-HEIDI_API_KEY=...                                     # Heidi API key
-HEIDI_WIDGET_TOKEN=...                                # Heidi Widget auth token
+HEIDI_API_BASE_URL=https://api.us.aiTranscriptionhealth.com   # Region-specific base URL
+HEIDI_API_KEY=...                                     # AITranscription API key
+HEIDI_WIDGET_TOKEN=...                                # AITranscription Widget auth token
 HEIDI_ENABLED=true                                    # Feature flag
 ```
 
@@ -583,12 +583,12 @@ export const getSuggestedCodes = (id: string) =>
    → Provider records verbal/written consent
 5. TemplateSelector shown → Provider picks "SOAP Note"
 6. TranscriptionPanel activates:
-   - Heidi Widget starts ambient recording
+   - AITranscription Widget starts ambient recording
    - Live transcript streams in sidebar
 7. Consultation proceeds naturally
 8. Provider clicks "End & Generate Note"
    - Session status → "processing"
-   - Heidi API generates structured note
+   - AITranscription API generates structured note
    - Loading state shown (typically 10-30 seconds)
 9. NotePreview displays:
    - Pre-filled SOAP fields
@@ -628,7 +628,7 @@ When a transcription note is accepted:
 
 The AI scribe can generate referral letters from the same transcription:
 - After SOAP note generation, offer "Also generate referral letter"
-- Uses same Heidi session transcript with a different template
+- Uses same AITranscription session transcript with a different template
 - Referral letter stored as a document (category: `letter`)
 - Links to the same transcription session
 
@@ -640,25 +640,25 @@ The AI scribe can generate referral letters from the same transcription:
 
 | Requirement | Implementation |
 |------------|----------------|
-| **BAA with Heidi** | Execute BAA before any PHI transmission. Heidi offers BAAs for enterprise plans. |
+| **BAA with AITranscription** | Execute BAA before any PHI transmission. AITranscription offers BAAs for enterprise plans. |
 | **Minimum Necessary** | Send only patient context needed for transcription (name, DOB for speaker identification). Never send full medical history. |
-| **Encryption in Transit** | Heidi API uses TLS 1.2+. Our API already enforces HTTPS. |
+| **Encryption in Transit** | AITranscription API uses TLS 1.2+. Our API already enforces HTTPS. |
 | **Encryption at Rest** | Transcripts and notes encrypted in our DB (Neon.tech provides encryption at rest). |
 | **Audit Trail** | All transcription actions logged via existing audit middleware. New resource types: `transcription_session`, `transcription_note`, `transcription_consent`. |
 | **Patient Consent** | Mandatory consent recording before first transcription per patient. Stored in `transcription_consents` table. |
-| **Data Retention** | Heidi deletes audio after transcription. We retain only text transcripts and notes. Define retention policy (suggest 7 years per medical records standard). |
+| **Data Retention** | AITranscription deletes audio after transcription. We retain only text transcripts and notes. Define retention policy (suggest 7 years per medical records standard). |
 | **Access Control** | Only `provider` and `nurse` roles can create/view transcription sessions. Sessions scoped to the assigned provider. |
 
 ### Audio Data Handling
 
 ```
-Audio Flow (Heidi manages this):
-  Browser mic → Heidi servers (encrypted) → Transcribed → Audio deleted
+Audio Flow (AITranscription manages this):
+  Browser mic → AITranscription servers (encrypted) → Transcribed → Audio deleted
 
 Our system NEVER stores audio files.
 We only store:
-  - Text transcript (returned by Heidi API)
-  - Structured note (generated by Heidi)
+  - Text transcript (returned by AITranscription API)
+  - Structured note (generated by AITranscription)
   - Session metadata (timestamps, status, etc.)
 ```
 
@@ -674,7 +674,7 @@ We only store:
 ### API Key Security
 
 - `HEIDI_API_KEY` stored as environment variable (never in code)
-- Key scoped to specific Heidi region
+- Key scoped to specific AITranscription region
 - Rotate quarterly or on suspected exposure
 - Rate limiting on our transcription endpoints to prevent abuse
 
@@ -695,10 +695,10 @@ Transcription Permissions:
 
 ### Phase 1: Foundation (2–3 weeks)
 
-**Goal**: Database schema, basic API, Heidi client, consent tracking
+**Goal**: Database schema, basic API, AITranscription client, consent tracking
 
 - [ ] Create migration `008_transcription_sessions.sql`
-- [ ] Implement `heidi-client.service.ts` (Heidi API wrapper)
+- [ ] Implement `aiTranscription-client.service.ts` (AITranscription API wrapper)
 - [ ] Implement `transcription.service.ts` (session CRUD, note storage)
 - [ ] Add transcription routes with auth/audit middleware
 - [ ] Add consent recording endpoint
@@ -709,10 +709,10 @@ Transcription Permissions:
 
 ### Phase 2: Frontend — Recording & Review (2–3 weeks)
 
-**Goal**: Embed Heidi Widget, build review UI
+**Goal**: Embed AITranscription Widget, build review UI
 
-- [ ] Install Heidi Widget SDK (`@heidihealth/widget-sdk`)
-- [ ] Build `TranscriptionPanel` with Heidi Widget embedded
+- [ ] Install AITranscription Widget SDK (`@aiTranscriptionhealth/widget-sdk`)
+- [ ] Build `TranscriptionPanel` with AITranscription Widget embedded
 - [ ] Build `ConsentDialog` component
 - [ ] Build `TemplateSelector` component
 - [ ] Build `NotePreview` component with editable fields
@@ -740,9 +740,9 @@ Transcription Permissions:
 
 - [ ] Security review (use `security-reviewer` agent)
 - [ ] HIPAA compliance audit of all data flows
-- [ ] Execute BAA with Heidi Health
+- [ ] Execute BAA with AITranscription Health
 - [ ] Add analytics/metrics (acceptance rate, edit frequency, time savings)
-- [ ] Error handling for Heidi API failures (graceful degradation)
+- [ ] Error handling for AITranscription API failures (graceful degradation)
 - [ ] Offline fallback messaging
 - [ ] Provider onboarding documentation
 - [ ] Load testing with concurrent transcription sessions
@@ -753,7 +753,7 @@ Transcription Permissions:
 
 ## 9. Alternative: Build-Your-Own AI Scribe
 
-If Heidi pricing is prohibitive or API access is restricted, we can build a similar pipeline using components we already have:
+If AITranscription pricing is prohibitive or API access is restricted, we can build a similar pipeline using components we already have:
 
 ### Architecture
 
@@ -773,14 +773,14 @@ Browser MediaRecorder API
 
 ### Cons
 - Significant development effort (audio handling, streaming, speaker diarization)
-- Lower transcription quality than Heidi's specialized medical models
+- Lower transcription quality than AITranscription's specialized medical models
 - No pre-built template library or community
 - Must handle audio storage/deletion ourselves
 - No ICD-10/CPT coding without additional ML
 
 ### Recommendation
 
-**Start with Heidi** (Phase 1–4 above). The Widget SDK minimizes frontend work, the API handles the complex audio/ML pipeline, and the compliance certifications (SOC 2, HIPAA BAA) reduce our liability. If usage grows beyond the cost-effective range, consider migrating to a self-hosted solution using the same database schema and API contracts.
+**Start with AITranscription** (Phase 1–4 above). The Widget SDK minimizes frontend work, the API handles the complex audio/ML pipeline, and the compliance certifications (SOC 2, HIPAA BAA) reduce our liability. If usage grows beyond the cost-effective range, consider migrating to a self-hosted solution using the same database schema and API contracts.
 
 ---
 
@@ -796,7 +796,7 @@ export interface TranscriptionSession {
   patientId: string;
   providerId: string;
   externalSessionId: string | null;
-  externalProvider: 'heidi' | 'built_in';
+  externalProvider: 'aiTranscription' | 'built_in';
   status: 'pending' | 'recording' | 'processing' | 'completed' | 'failed' | 'cancelled';
   startedAt: string | null;
   endedAt: string | null;

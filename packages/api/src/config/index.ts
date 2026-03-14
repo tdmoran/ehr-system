@@ -37,7 +37,7 @@ export const config = {
     authMaxRequests: parseInt(process.env.RATE_LIMIT_AUTH_MAX || '10', 10),
   },
   requestTimeoutMs: parseInt(process.env.REQUEST_TIMEOUT_MS || '30000', 10),
-  heidi: {
+  aiTranscription: {
     apiBaseUrl: process.env.HEIDI_API_BASE_URL || '',
     apiKey: process.env.HEIDI_API_KEY || '',
     enabled: process.env.HEIDI_ENABLED === 'true',

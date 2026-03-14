@@ -1,5 +1,5 @@
 import { query, withTransaction } from '../db/index.js';
-import * as heidiClient from './heidi-client.service.js';
+import * as aiTranscriptionClient from './aiTranscription-client.service.js';
 import { logger } from '../utils/logger.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -11,7 +11,7 @@ export interface TranscriptionSession {
   patientId: string;
   providerId: string;
   externalSessionId: string | null;
-  externalProvider: 'heidi' | 'built_in';
+  externalProvider: 'aiTranscription' | 'built_in';
   status: 'pending' | 'recording' | 'processing' | 'completed' | 'failed' | 'cancelled';
   startedAt: Date | null;
   endedAt: Date | null;
@@ -174,20 +174,20 @@ function mapConsentRow(row: Record<string, unknown>): TranscriptionConsent {
 export async function createSession(
   input: CreateSessionInput
 ): Promise<{ session: TranscriptionSession; externalSessionUrl?: string }> {
-  const externalProvider = heidiClient.isHeidiEnabled() ? 'heidi' : 'built_in';
+  const externalProvider = aiTranscriptionClient.isAITranscriptionEnabled() ? 'aiTranscription' : 'built_in';
   let externalSessionId: string | null = null;
   let externalSessionUrl: string | undefined;
 
-  if (externalProvider === 'heidi') {
+  if (externalProvider === 'aiTranscription') {
     try {
-      const heidiSession = await heidiClient.createHeidiSession({
+      const aiTranscriptionSession = await aiTranscriptionClient.createAITranscriptionSession({
         language: input.language,
         templateType: input.templateType,
       });
-      externalSessionId = heidiSession.sessionId;
-      externalSessionUrl = heidiSession.sessionUrl;
+      externalSessionId = aiTranscriptionSession.sessionId;
+      externalSessionUrl = aiTranscriptionSession.sessionUrl;
     } catch (error) {
-      logger.error('Failed to create Heidi session', { error });
+      logger.error('Failed to create AITranscription session', { error });
       throw error;
     }
   }
@@ -292,14 +292,14 @@ export async function generateNote(
     throw new Error('No external session ID available for note generation');
   }
 
-  // Call Heidi API for structured note
-  const heidiNote = await heidiClient.generateStructuredNote(
+  // Call AITranscription API for structured note
+  const aiTranscriptionNote = await aiTranscriptionClient.generateStructuredNote(
     session.externalSessionId,
     templateType || session.templateUsed || 'soap'
   );
 
   // Get transcript
-  const transcript = await heidiClient.getTranscript(session.externalSessionId);
+  const transcript = await aiTranscriptionClient.getTranscript(session.externalSessionId);
 
   // Store the generated note
   const result = await query<Record<string, unknown>>(
@@ -311,16 +311,16 @@ export async function generateNote(
     RETURNING *`,
     [
       sessionId,
-      heidiNote.chiefComplaint,
-      heidiNote.subjective,
-      heidiNote.objective,
-      heidiNote.assessment,
-      heidiNote.plan,
+      aiTranscriptionNote.chiefComplaint,
+      aiTranscriptionNote.subjective,
+      aiTranscriptionNote.objective,
+      aiTranscriptionNote.assessment,
+      aiTranscriptionNote.plan,
       transcript.transcript,
-      heidiNote.summary,
-      JSON.stringify(heidiNote.suggestedIcdCodes),
-      JSON.stringify(heidiNote.suggestedCptCodes),
-      heidiNote.confidenceScore,
+      aiTranscriptionNote.summary,
+      JSON.stringify(aiTranscriptionNote.suggestedIcdCodes),
+      JSON.stringify(aiTranscriptionNote.suggestedCptCodes),
+      aiTranscriptionNote.confidenceScore,
       transcript.wordCount,
       transcript.speakerCount,
     ]
@@ -444,9 +444,9 @@ export async function getSuggestedCodes(
     };
   }
 
-  // Fall back to Heidi API if no stored codes
+  // Fall back to AITranscription API if no stored codes
   if (session.externalSessionId) {
-    return heidiClient.getSuggestedCodes(session.externalSessionId);
+    return aiTranscriptionClient.getSuggestedCodes(session.externalSessionId);
   }
 
   return { icdCodes: [], cptCodes: [] };

@@ -13,9 +13,9 @@ router.use(authenticate);
 
 // ─── Feature flag guard ──────────────────────────────────────────────────────
 
-function requireHeidiEnabled() {
+function requireAITranscriptionEnabled() {
   return asyncHandler(async (_req, res, next) => {
-    if (!config.heidi.enabled) {
+    if (!config.aiTranscription.enabled) {
       return res.status(503).json({ error: 'Transcription feature is not enabled' });
     }
     next();
@@ -70,7 +70,7 @@ const recordConsentSchema = z.object({
 // POST /sessions — Create a new transcription session
 router.post(
   '/sessions',
-  requireHeidiEnabled(),
+  requireAITranscriptionEnabled(),
   authorize('provider', 'nurse'),
   validate(createSessionSchema),
   asyncHandler(async (req, res) => {
@@ -93,7 +93,7 @@ router.post(
 // PATCH /sessions/:id/status — Update session status
 router.patch(
   '/sessions/:id/status',
-  requireHeidiEnabled(),
+  requireAITranscriptionEnabled(),
   authorize('provider', 'nurse'),
   validate(updateStatusSchema),
   asyncHandler(async (req, res) => {
@@ -158,7 +158,7 @@ router.get(
 // POST /sessions/:id/generate — Trigger note generation
 router.post(
   '/sessions/:id/generate',
-  requireHeidiEnabled(),
+  requireAITranscriptionEnabled(),
   authorize('provider', 'nurse'),
   validate(generateNoteSchema),
   asyncHandler(async (req, res) => {

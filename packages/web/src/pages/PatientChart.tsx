@@ -323,7 +323,7 @@ export default function PatientChart() {
     { id: 'documents', label: 'Scanned Documents' },
     { id: 'letters', label: 'Letters' },
     { id: 'clinic-notes', label: 'Clinic Notes' },
-    { id: 'notes', label: 'Notes from Heidi' },
+    { id: 'notes', label: 'Notes from AITranscription' },
     { id: 'operative-notes', label: 'Operative Notes' },
   ] as const;
 

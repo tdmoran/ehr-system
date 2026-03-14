@@ -21,7 +21,7 @@ export interface TranscriptionSession {
   patientId: string;
   providerId: string;
   externalSessionId: string | null;
-  externalProvider: 'heidi' | 'built_in';
+  externalProvider: 'aiTranscription' | 'built_in';
   status: TranscriptionStatus;
   startedAt: string | null;
   endedAt: string | null;

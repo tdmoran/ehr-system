@@ -5,9 +5,9 @@ import { transcriptionsApi } from '../../api/transcriptions';
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const CONSENT_TEXT_PARAGRAPHS = [
-  'This clinical visit will be recorded using an AI-powered transcription system (Heidi Health) to assist in generating clinical documentation.',
-  'The audio from this visit will be temporarily processed by Heidi Health\'s secure servers to produce a text transcript. Audio is deleted immediately after transcription — only the text transcript and structured clinical notes are retained.',
-  'All data is encrypted in transit (TLS 1.2+) and at rest. Heidi Health is SOC 2 Type 2 certified, ISO 27001 certified, and HIPAA compliant.',
+  'This clinical visit will be recorded using an AI-powered transcription system (AITranscription Health) to assist in generating clinical documentation.',
+  'The audio from this visit will be temporarily processed by AITranscription Health\'s secure servers to produce a text transcript. Audio is deleted immediately after transcription — only the text transcript and structured clinical notes are retained.',
+  'All data is encrypted in transit (TLS 1.2+) and at rest. AITranscription Health is SOC 2 Type 2 certified, ISO 27001 certified, and HIPAA compliant.',
   'The generated notes will be reviewed and approved by your clinician before being added to your medical record. You may withdraw consent at any time.',
 ];
 
@@ -37,7 +37,7 @@ export default function ConsentModal({
 }: ConsentModalProps) {
   const [consentMethod, setConsentMethod] = useState<ConsentMethod>('electronic');
   const [aiConsentChecked, setAiConsentChecked] = useState(false);
-  const [heidiConsentChecked, setHeidiConsentChecked] = useState(false);
+  const [aiTranscriptionConsentChecked, setAITranscriptionConsentChecked] = useState(false);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +52,7 @@ export default function ConsentModal({
   const isElectronic = consentMethod === 'electronic';
   const canSubmit =
     aiConsentChecked &&
-    heidiConsentChecked &&
+    aiTranscriptionConsentChecked &&
     (!isElectronic || signatureState.hasSignature);
 
   // ─── Canvas Setup ───────────────────────────────────────────────────────
@@ -240,7 +240,7 @@ export default function ConsentModal({
         </div>
         <div class="checkboxes">
           <label>[${aiConsentChecked ? 'X' : ' '}] Patient consents to AI-assisted transcription of this visit</label>
-          <label>[${heidiConsentChecked ? 'X' : ' '}] Patient understands data will be processed by Heidi Health</label>
+          <label>[${aiTranscriptionConsentChecked ? 'X' : ' '}] Patient understands data will be processed by AITranscription Health</label>
         </div>
         <div class="consent-section">
           <p><strong>Consent Method:</strong> ${consentMethod}</p>
@@ -333,12 +333,12 @@ export default function ConsentModal({
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={heidiConsentChecked}
-                  onChange={(e) => setHeidiConsentChecked(e.target.checked)}
+                  checked={aiTranscriptionConsentChecked}
+                  onChange={(e) => setAITranscriptionConsentChecked(e.target.checked)}
                   className="mt-1 h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
                 />
                 <span className="text-sm text-gray-700 dark:text-gray-300">
-                  Patient understands data will be processed by Heidi Health
+                  Patient understands data will be processed by AITranscription Health
                 </span>
               </label>
             </div>
@@ -405,7 +405,7 @@ export default function ConsentModal({
                     </div>
                   )}
                 </div>
-                {!signatureState.hasSignature && aiConsentChecked && heidiConsentChecked && (
+                {!signatureState.hasSignature && aiConsentChecked && aiTranscriptionConsentChecked && (
                   <p className="text-xs text-amber-600 dark:text-amber-400">
                     A digital signature is required for electronic consent
                   </p>

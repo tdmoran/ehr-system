@@ -10,7 +10,7 @@ vi.mock('../db/index.js', () => ({
   withTransaction: (fn: (client: unknown) => Promise<unknown>) => mockWithTransaction(fn),
 }));
 
-vi.mock('./aiTranscription-client.service.js', () => ({
+vi.mock('./ai-transcription-client.service.js', () => ({
   isAITranscriptionEnabled: vi.fn(() => true),
   createAITranscriptionSession: vi.fn(),
   generateStructuredNote: vi.fn(),
@@ -23,7 +23,7 @@ vi.mock('../utils/logger.js', () => ({
 }));
 
 import * as service from './transcription.service.js';
-import * as aiClient from './aiTranscription-client.service.js';
+import * as aiClient from './ai-transcription-client.service.js';
 
 // ─── Test Data ──────────────────────────────────────────────────────────────
 

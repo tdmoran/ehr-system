@@ -1,5 +1,5 @@
 import { query, withTransaction } from '../db/index.js';
-import * as aiTranscriptionClient from './aiTranscription-client.service.js';
+import * as aiTranscriptionClient from './ai-transcription-client.service.js';
 import { logger } from '../utils/logger.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────

@@ -51,7 +51,12 @@ const noteModificationsSchema = z.object({
 const acceptNoteSchema = z.object({
   modifications: noteModificationsSchema.optional(),
   encounterId: z.string().uuid().optional(),
-});
+  forceAccept: z.boolean().optional(),
+  forceAcceptReason: z.string().min(10).max(500).optional(),
+}).refine(
+  (data) => !data.forceAccept || (data.forceAccept && data.forceAcceptReason),
+  { message: 'forceAcceptReason is required when forceAccept is true', path: ['forceAcceptReason'] }
+);
 
 const createTemplateSchema = z.object({
   name: z.string().min(1).max(100),
@@ -198,29 +203,48 @@ router.post(
 // POST /sessions/:id/accept — Accept AI note and create/update encounter
 router.post(
   '/sessions/:id/accept',
-  authorize('provider'),
+  authorize('provider', 'admin'),
   validate(acceptNoteSchema),
   asyncHandler(async (req, res) => {
     const existing = await transcriptionService.findSessionById(req.params.id);
     if (!existing) throw new NotFoundError('Transcription session not found');
 
-    if (existing.providerId !== req.user!.id) {
+    const isAdmin = req.user!.role === 'admin';
+    const isOwnSession = existing.providerId === req.user!.id;
+
+    if (!isOwnSession && !isAdmin) {
       throw new ForbiddenError('Only the session provider can accept notes');
+    }
+
+    if (!isOwnSession && isAdmin && !req.body.forceAccept) {
+      throw new ForbiddenError('Admin must set forceAccept flag to accept notes on behalf of a provider');
     }
 
     const result = await transcriptionService.acceptNote(
       req.params.id,
-      req.user!.id,
+      isOwnSession ? req.user!.id : existing.providerId,
       req.body.modifications,
       req.body.encounterId
     );
+
+    const auditDetails: Record<string, unknown> = {
+      action: 'accepted',
+      hasModifications: !!req.body.modifications,
+    };
+
+    if (!isOwnSession && isAdmin) {
+      auditDetails.forceAccept = true;
+      auditDetails.adminUserId = req.user!.id;
+      auditDetails.originalProviderId = existing.providerId;
+      auditDetails.reason = req.body.forceAcceptReason;
+    }
 
     await logAudit(req, {
       action: 'create',
       resourceType: 'transcription_note',
       resourceId: req.params.id,
       patientId: existing.patientId,
-      details: { action: 'accepted', hasModifications: !!req.body.modifications },
+      details: auditDetails,
     });
 
     res.json(result);

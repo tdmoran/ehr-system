@@ -136,7 +136,12 @@ export const transcriptionsApi = {
       { method: 'POST', body: JSON.stringify({ templateType }) }
     ),
 
-  acceptNote: (id: string, data: { modifications?: Record<string, unknown>; encounterId?: string }) =>
+  acceptNote: (id: string, data: {
+    modifications?: Record<string, unknown>;
+    encounterId?: string;
+    forceAccept?: boolean;
+    forceAcceptReason?: string;
+  }) =>
     request<{ encounter: unknown }>(
       `/transcriptions/sessions/${id}/accept`,
       { method: 'POST', body: JSON.stringify(data) }

@@ -13,6 +13,7 @@ const PatientChart = lazy(() => import('./pages/PatientChart'));
 const Calendar = lazy(() => import('./pages/Calendar'));
 const SecretaryDashboard = lazy(() => import('./pages/SecretaryDashboard'));
 const Documents = lazy(() => import('./pages/Documents'));
+const TranscriptionsPage = lazy(() => import('./pages/TranscriptionsPage'));
 
 function PageLoader() {
   return (
@@ -65,6 +66,8 @@ export default function App() {
                       <Route path="/documents" element={<Documents />} />
                       <Route path="/calendar" element={<Calendar />} />
                       <Route path="/schedule" element={<SecretaryDashboard />} />
+                      <Route path="/transcriptions" element={<TranscriptionsPage />} />
+                      <Route path="/transcriptions/*" element={<TranscriptionsPage />} />
                     </Routes>
                   </Suspense>
                 </ErrorBoundary>

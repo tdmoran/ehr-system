@@ -44,6 +44,7 @@ export default function Layout({ children }: LayoutProps) {
   const baseNavItems = [
     { path: '/', label: 'Dashboard', icon: DashboardIcon },
     { path: '/patients', label: 'Patients', icon: PatientsIcon },
+    { path: '/transcriptions', label: 'AI Scribe', icon: TranscriptionsIcon },
     { path: '/documents', label: 'Documents', icon: DocumentsIcon },
     { path: '/calendar', label: 'Calendar', icon: CalendarIcon },
   ];
@@ -70,8 +71,8 @@ export default function Layout({ children }: LayoutProps) {
     : [
         { path: '/', label: 'Home', icon: DashboardIcon },
         { path: '/patients', label: 'Patients', icon: PatientsIcon },
+        { path: '/transcriptions', label: 'AI Scribe', icon: TranscriptionsIcon },
         { path: '/calendar', label: 'Calendar', icon: CalendarIcon },
-        { path: '/documents', label: 'Docs', icon: DocumentsIcon },
       ];
 
   const toggleTheme = () => {
@@ -601,6 +602,14 @@ function LogoutIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+    </svg>
+  );
+}
+
+function TranscriptionsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
     </svg>
   );
 }

@@ -171,6 +171,17 @@ function mapConsentRow(row: Record<string, unknown>): TranscriptionConsent {
 
 // ─── Session CRUD ────────────────────────────────────────────────────────────
 
+/**
+ * Creates a new transcription session for a patient visit.
+ *
+ * If AITranscription is enabled, initializes an external session via the
+ * AITranscription API and stores the external session ID. Falls back to
+ * 'built_in' provider when AITranscription is disabled.
+ *
+ * @param input - Session creation parameters (patientId, providerId, optional appointmentId, templateType, language)
+ * @returns The created session and optional external session URL for the AITranscription widget
+ * @throws When AITranscription API call fails (if enabled)
+ */
 export async function createSession(
   input: CreateSessionInput
 ): Promise<{ session: TranscriptionSession; externalSessionUrl?: string }> {
@@ -238,6 +249,18 @@ export async function findSessionsByPatientId(patientId: string): Promise<Transc
   return result.rows.map(mapSessionRow);
 }
 
+/**
+ * Updates the status of a transcription session with automatic timestamp management.
+ *
+ * - Sets `started_at` when transitioning to 'recording' (only if not already set)
+ * - Sets `ended_at` and computes `duration_seconds` on terminal states (completed, failed, cancelled)
+ * - Optionally stores an error message for failed sessions
+ *
+ * @param id - Session UUID
+ * @param status - New status value
+ * @param errorMessage - Optional error details (for 'failed' status)
+ * @returns Updated session or null if not found
+ */
 export async function updateSessionStatus(
   id: string,
   status: TranscriptionSession['status'],
@@ -272,6 +295,10 @@ export async function updateSessionStatus(
 
 // ─── Note Operations ─────────────────────────────────────────────────────────
 
+/**
+ * Fetches a session along with its most recent generated note.
+ * @returns Session and note (null if no note generated yet), or null if session not found
+ */
 export async function getSessionWithNote(
   sessionId: string
 ): Promise<{ session: TranscriptionSession; note: TranscriptionNote | null } | null> {
@@ -288,6 +315,18 @@ export async function getSessionWithNote(
   return { session, note };
 }
 
+/**
+ * Generates a structured clinical note from a transcription session.
+ *
+ * Calls the AITranscription API to retrieve the transcript and generate a
+ * structured note (SOAP fields, summary, ICD/CPT codes). Stores the result
+ * in the `transcription_notes` table and marks the session as completed.
+ *
+ * @param sessionId - Session UUID
+ * @param templateType - Note template type (defaults to session's template or 'soap')
+ * @returns The generated note
+ * @throws When session not found or has no external session ID
+ */
 export async function generateNote(
   sessionId: string,
   templateType?: string
@@ -339,6 +378,21 @@ export async function generateNote(
   return mapNoteRow(result.rows[0]);
 }
 
+/**
+ * Accepts an AI-generated note and creates or updates an encounter.
+ *
+ * Runs in a transaction:
+ * 1. Marks the note as accepted with reviewer info and any modifications
+ * 2. Creates a new encounter or updates an existing one with the SOAP fields
+ * 3. Links the encounter to the transcription session
+ * 4. Sets `ai_assisted = true` on the encounter
+ *
+ * @param sessionId - Session UUID
+ * @param reviewerId - UUID of the reviewing clinician
+ * @param modifications - Optional field overrides from clinician edits
+ * @param encounterId - Optional existing encounter UUID to update instead of creating new
+ * @returns The created or updated encounter
+ */
 export async function acceptNote(
   sessionId: string,
   reviewerId: string,
@@ -419,6 +473,10 @@ export async function acceptNote(
   });
 }
 
+/**
+ * Rejects an AI-generated note. The clinician will write the encounter manually.
+ * Marks the note as reviewed but not accepted.
+ */
 export async function rejectNote(
   sessionId: string,
   reviewerId: string
@@ -431,6 +489,14 @@ export async function rejectNote(
   );
 }
 
+/**
+ * Retrieves suggested ICD-10 and CPT codes for a session.
+ *
+ * First checks for codes already stored in the note. If none found,
+ * falls back to querying the AITranscription API directly.
+ *
+ * @returns Object with `icdCodes` and `cptCodes` arrays
+ */
 export async function getSuggestedCodes(
   sessionId: string
 ): Promise<{ icdCodes: unknown[]; cptCodes: unknown[] }> {
@@ -471,6 +537,15 @@ export interface UpdateNoteInput {
   reviewStatus?: 'draft' | 'finalized';
 }
 
+/**
+ * Updates specific fields of a transcription note (draft save).
+ * Only the provided fields are updated; others are preserved.
+ *
+ * @param sessionId - Session UUID (finds the most recent note for this session)
+ * @param input - Fields to update
+ * @returns The updated note
+ * @throws When no note exists for the session
+ */
 export async function updateNote(
   sessionId: string,
   input: UpdateNoteInput
@@ -538,6 +613,7 @@ export async function updateNote(
 
 // ─── Template CRUD ───────────────────────────────────────────────────────────
 
+/** Lists all templates for a provider, with defaults first, then alphabetical. */
 export async function findTemplatesByProviderId(providerId: string): Promise<TranscriptionTemplate[]> {
   const result = await query<Record<string, unknown>>(
     `SELECT * FROM transcription_templates WHERE provider_id = $1 ORDER BY is_default DESC, name ASC`,
@@ -546,6 +622,7 @@ export async function findTemplatesByProviderId(providerId: string): Promise<Tra
   return result.rows.map(mapTemplateRow);
 }
 
+/** Finds a template by UUID. Returns null if not found. */
 export async function findTemplateById(id: string): Promise<TranscriptionTemplate | null> {
   const result = await query<Record<string, unknown>>(
     `SELECT * FROM transcription_templates WHERE id = $1`,
@@ -554,6 +631,10 @@ export async function findTemplateById(id: string): Promise<TranscriptionTemplat
   return result.rows.length > 0 ? mapTemplateRow(result.rows[0]) : null;
 }
 
+/**
+ * Creates a new note template for a provider.
+ * If `isDefault` is true, unsets the default flag on all other templates for this provider.
+ */
 export async function createTemplate(input: CreateTemplateInput): Promise<TranscriptionTemplate> {
   // If setting as default, unset other defaults for this provider
   if (input.isDefault) {
@@ -579,6 +660,7 @@ export async function createTemplate(input: CreateTemplateInput): Promise<Transc
   return mapTemplateRow(result.rows[0]);
 }
 
+/** Updates a template's fields. Only provided fields are changed. */
 export async function updateTemplate(
   id: string,
   input: Partial<Omit<CreateTemplateInput, 'providerId'>>
@@ -620,6 +702,7 @@ export async function updateTemplate(
   return result.rows.length > 0 ? mapTemplateRow(result.rows[0]) : null;
 }
 
+/** Deletes a template by UUID. Returns true if a row was deleted. */
 export async function deleteTemplate(id: string): Promise<boolean> {
   const result = await query(
     `DELETE FROM transcription_templates WHERE id = $1`,
@@ -630,6 +713,10 @@ export async function deleteTemplate(id: string): Promise<boolean> {
 
 // ─── Consent CRUD ────────────────────────────────────────────────────────────
 
+/**
+ * Records a patient's consent (or refusal) for AI transcription.
+ * Consent records are immutable -- new records are created for changes, never updated.
+ */
 export async function recordConsent(input: RecordConsentInput): Promise<TranscriptionConsent> {
   const result = await query<Record<string, unknown>>(
     `INSERT INTO transcription_consents (patient_id, provider_id, session_id, consent_given, consent_method, notes)
@@ -648,6 +735,7 @@ export async function recordConsent(input: RecordConsentInput): Promise<Transcri
   return mapConsentRow(result.rows[0]);
 }
 
+/** Lists all consent records for a patient, ordered by most recent first. */
 export async function findConsentsByPatientId(patientId: string): Promise<TranscriptionConsent[]> {
   const result = await query<Record<string, unknown>>(
     `SELECT * FROM transcription_consents WHERE patient_id = $1 ORDER BY recorded_at DESC`,

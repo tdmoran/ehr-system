@@ -1,6 +1,7 @@
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 
+/** Custom error class for AITranscription API failures, preserving the HTTP status code and response body. */
 export class AITranscriptionApiError extends Error {
   public readonly statusCode: number;
   public readonly responseBody: string;
@@ -51,6 +52,11 @@ interface PatientContext {
   templateType?: string;
 }
 
+/**
+ * Internal helper to make authenticated requests to the AITranscription API.
+ * Validates that the feature is enabled and configured before making any request.
+ * @throws {AITranscriptionApiError} On non-OK responses, disabled state, or missing config
+ */
 async function aiTranscriptionRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const { aiTranscription } = config;
 
@@ -84,6 +90,11 @@ async function aiTranscriptionRequest<T>(path: string, options: RequestInit = {}
   return response.json() as Promise<T>;
 }
 
+/**
+ * Creates a new transcription session on the AITranscription API.
+ * @param patientContext - Optional patient context for speaker identification
+ * @returns Session ID and URL for the AITranscription widget
+ */
 export async function createAITranscriptionSession(
   patientContext: PatientContext
 ): Promise<AITranscriptionSessionResponse> {
@@ -98,6 +109,9 @@ export async function createAITranscriptionSession(
   });
 }
 
+/**
+ * Retrieves the raw transcript for a completed session, including speaker labels and word count.
+ */
 export async function getTranscript(
   externalSessionId: string
 ): Promise<AITranscriptionTranscriptResponse> {
@@ -106,6 +120,10 @@ export async function getTranscript(
   );
 }
 
+/**
+ * Generates a structured clinical note from a transcription session.
+ * Returns SOAP fields, summary, confidence score, and suggested ICD/CPT codes.
+ */
 export async function generateStructuredNote(
   externalSessionId: string,
   templateType: string = 'soap'
@@ -119,6 +137,7 @@ export async function generateStructuredNote(
   );
 }
 
+/** Retrieves AI-suggested ICD-10 and CPT codes for a session. */
 export async function getSuggestedCodes(
   externalSessionId: string
 ): Promise<{ icdCodes: AITranscriptionNoteResponse['suggestedIcdCodes']; cptCodes: AITranscriptionNoteResponse['suggestedCptCodes'] }> {
@@ -127,6 +146,7 @@ export async function getSuggestedCodes(
   );
 }
 
+/** Polls the processing status of an AITranscription session. */
 export async function getSessionStatus(
   externalSessionId: string
 ): Promise<AITranscriptionStatusResponse> {
@@ -135,6 +155,7 @@ export async function getSessionStatus(
   );
 }
 
+/** Returns whether the AITranscription integration is enabled via the HEIDI_ENABLED feature flag. */
 export function isAITranscriptionEnabled(): boolean {
   return config.aiTranscription.enabled;
 }

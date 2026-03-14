@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, CSSProperties, ReactElement } from 'react';
-import { List as VirtualList, useListRef } from 'react-window';
+import { List as VirtualList, ListImperativeAPI } from 'react-window';
 import { Link } from 'react-router-dom';
 import { transcriptionsApi, TranscriptionSession } from '../../api/transcriptions';
 import { api, Patient } from '../../api/client';
@@ -86,7 +86,7 @@ export function LiveRecording({
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const wsReconnectAttemptsRef = useRef(0);
-  const transcriptListRef = useListRef();
+  const transcriptListRef = useRef<ListImperativeAPI>(null);
   const patientDropdownRef = useRef<HTMLDivElement | null>(null);
 
   // ── Patient search with debounce ────────────────────────────────────────
@@ -675,7 +675,7 @@ export function LiveRecording({
                   Waiting for speech...
                 </p>
               ) : (
-                <VirtualList
+                <VirtualList<TranscriptRowProps>
                   listRef={transcriptListRef}
                   style={{
                     height: Math.min(
@@ -789,7 +789,7 @@ interface TranscriptRowProps {
   readonly lines: readonly TranscriptLine[];
 }
 
-function TranscriptRow({ index, style, lines }: { index: number; style: CSSProperties } & TranscriptRowProps): ReactElement {
+function TranscriptRow({ index, style, lines }: { index: number; style: CSSProperties; lines: readonly TranscriptLine[] }): ReactElement {
   const line = lines[index];
   return (
     <div style={style} className="text-sm flex items-center">

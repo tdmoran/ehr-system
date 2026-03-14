@@ -509,24 +509,30 @@ export function NoteEditor({ sessionId, onClose, onFinalized }: NoteEditorProps)
         </div>
       )}
 
-      {/* ── Footer actions ──────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-4 md:px-6 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-        <div className="flex items-center gap-2">
-          {session && (
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              Session: {session.status}
-              {session.durationSeconds != null && (
-                <> · {formatDuration(session.durationSeconds)}</>
-              )}
-            </span>
-          )}
-        </div>
+      {/* ── Footer actions — touch-friendly on mobile ──────────────────────── */}
+      <div className={isMobile
+        ? 'flex flex-col gap-3 px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50'
+        : 'flex flex-wrap items-center justify-between gap-2 px-4 md:px-6 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50'}>
+        {!isMobile && (
+          <div className="flex items-center gap-2">
+            {session && (
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                Session: {session.status}
+                {session.durationSeconds != null && (
+                  <> · {formatDuration(session.durationSeconds)}</>
+                )}
+              </span>
+            )}
+          </div>
+        )}
 
-        <div className="flex items-center gap-3">
+        <div className={isMobile ? 'flex flex-col gap-2' : 'flex items-center gap-3'}>
           <button
             onClick={handleSaveDraft}
             disabled={saveStatus === 'saving'}
-            className="px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors min-h-[44px]"
+            className={isMobile
+              ? 'w-full px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 active:bg-gray-100 disabled:opacity-50 transition-colors min-h-[44px]'
+              : 'px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors min-h-[44px]'}
           >
             {saveStatus === 'saving' ? 'Saving...' : 'Save Draft'}
           </button>
@@ -534,7 +540,9 @@ export function NoteEditor({ sessionId, onClose, onFinalized }: NoteEditorProps)
           <button
             onClick={handleFinalize}
             disabled={finalizing}
-            className="px-4 py-3 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 disabled:opacity-50 flex items-center gap-2 transition-colors min-h-[44px]"
+            className={isMobile
+              ? 'w-full px-4 py-3 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 active:bg-teal-800 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors min-h-[48px]'
+              : 'px-4 py-3 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 disabled:opacity-50 flex items-center gap-2 transition-colors min-h-[44px]'}
           >
             {finalizing ? (
               <SpinnerIcon className="w-4 h-4 animate-spin" />

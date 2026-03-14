@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import * as transcriptionService from '../services/transcription.service.js';
+import * as patientService from '../services/patient.service.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { logAudit } from '../middleware/audit.js';
@@ -39,8 +40,16 @@ const generateNoteSchema = z.object({
   templateType: z.enum(['soap', 'progress_note', 'referral_letter', 'operative_note', 'assessment_report', 'custom']).optional(),
 });
 
+const noteModificationsSchema = z.object({
+  chiefComplaint: z.string().max(500).optional(),
+  subjective: z.string().max(10000).optional(),
+  objective: z.string().max(10000).optional(),
+  assessment: z.string().max(10000).optional(),
+  plan: z.string().max(10000).optional(),
+}).strict();
+
 const acceptNoteSchema = z.object({
-  modifications: z.record(z.unknown()).optional(),
+  modifications: noteModificationsSchema.optional(),
   encounterId: z.string().uuid().optional(),
 });
 
@@ -142,6 +151,9 @@ router.get(
   '/sessions/patient/:patientId',
   authorize('provider', 'nurse', 'admin'),
   asyncHandler(async (req, res) => {
+    const patient = await patientService.findById(req.params.patientId);
+    if (!patient) throw new NotFoundError('Patient not found');
+
     const sessions = await transcriptionService.findSessionsByPatientId(req.params.patientId);
 
     await logAudit(req, {
